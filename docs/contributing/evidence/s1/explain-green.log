@@ -1,0 +1,6 @@
+=== RUN   TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime
+--- PASS: TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime (0.00s)
+=== RUN   TestLocalFixturePublishesQueryableRevision
+--- PASS: TestLocalFixturePublishesQueryableRevision (3.52s)
+PASS
+ok  	batz/internal/app	3.808s

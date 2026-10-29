@@ -1,0 +1,181 @@
+{
+  "status": "unaccepted decision examples; not runtime evidence",
+  "cases": [
+    {
+      "id": "mapped",
+      "source": {
+        "Records": [
+          {
+            "eventVersion": "1.09",
+            "eventID": "11111111-2222-4333-8444-555555555555",
+            "eventTime": "2026-10-25T12:00:00Z",
+            "eventSource": "s3.amazonaws.com",
+            "eventName": "GetObject",
+            "awsRegion": "ap-southeast-2",
+            "sourceIPAddress": "192.0.2.10",
+            "userIdentity": {
+              "type": "IAMUser",
+              "accountId": "111122223333",
+              "arn": "arn:aws:iam::111122223333:user/example-responder"
+            },
+            "requestParameters": {
+              "bucketName": "example-data",
+              "key": "example.txt"
+            },
+            "responseElements": null,
+            "eventType": "AwsApiCall",
+            "eventCategory": "Data",
+            "readOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "quality": "complete",
+        "mapped": 1,
+        "unsupported": 0,
+        "rejected": 0,
+        "exit": 0,
+        "action": "object-read",
+        "actor": "arn:aws:iam::111122223333:user/example-responder",
+        "recipient_account": null,
+        "fraction_digits": 0
+      }
+    },
+    {
+      "id": "unsupported",
+      "source": {
+        "Records": [
+          {
+            "eventVersion": "1.09",
+            "eventID": "11111111-2222-4333-8444-555555555555",
+            "eventTime": "2026-10-25T12:00:00Z",
+            "eventSource": "s3.amazonaws.com",
+            "eventName": "PutObject",
+            "awsRegion": "ap-southeast-2",
+            "sourceIPAddress": "192.0.2.10",
+            "userIdentity": {
+              "type": "IAMUser",
+              "accountId": "111122223333",
+              "arn": "arn:aws:iam::111122223333:user/example-responder"
+            },
+            "requestParameters": {
+              "bucketName": "example-data",
+              "key": "example.txt"
+            },
+            "responseElements": null,
+            "eventType": "AwsApiCall",
+            "eventCategory": "Data",
+            "readOnly": false
+          }
+        ]
+      },
+      "expected": {
+        "quality": "complete",
+        "mapped": 0,
+        "unsupported": 1,
+        "rejected": 0,
+        "exit": 0
+      }
+    },
+    {
+      "id": "bad_time",
+      "source": {
+        "Records": [
+          {
+            "eventVersion": "1.09",
+            "eventID": "11111111-2222-4333-8444-555555555555",
+            "eventTime": "not-a-timestamp",
+            "eventSource": "s3.amazonaws.com",
+            "eventName": "GetObject",
+            "awsRegion": "ap-southeast-2",
+            "sourceIPAddress": "192.0.2.10",
+            "userIdentity": {
+              "type": "IAMUser",
+              "accountId": "111122223333",
+              "arn": "arn:aws:iam::111122223333:user/example-responder"
+            },
+            "requestParameters": {
+              "bucketName": "example-data",
+              "key": "example.txt"
+            },
+            "responseElements": null,
+            "eventType": "AwsApiCall",
+            "eventCategory": "Data",
+            "readOnly": true
+          }
+        ]
+      },
+      "expected": {
+        "quality": "partial",
+        "mapped": 0,
+        "unsupported": 0,
+        "rejected": 1,
+        "default_exit": 0,
+        "strict_exit": 6
+      }
+    },
+    {
+      "id": "empty",
+      "source": {
+        "Records": []
+      },
+      "expected": {
+        "quality": "complete",
+        "mapped": 0,
+        "unsupported": 0,
+        "rejected": 0,
+        "exit": 0
+      }
+    },
+    {
+      "id": "unsupported_shape",
+      "source": [
+        {
+          "eventVersion": "1.09",
+          "eventID": "11111111-2222-4333-8444-555555555555",
+          "eventTime": "2026-10-25T12:00:00Z",
+          "eventSource": "s3.amazonaws.com",
+          "eventName": "GetObject",
+          "awsRegion": "ap-southeast-2",
+          "sourceIPAddress": "192.0.2.10",
+          "userIdentity": {
+            "type": "IAMUser",
+            "accountId": "111122223333",
+            "arn": "arn:aws:iam::111122223333:user/example-responder"
+          },
+          "requestParameters": {
+            "bucketName": "example-data",
+            "key": "example.txt"
+          },
+          "responseElements": null,
+          "eventType": "AwsApiCall",
+          "eventCategory": "Data",
+          "readOnly": true
+        }
+      ],
+      "expected": {
+        "diagnostic": "unsupported-shape",
+        "parsed_commit": false
+      }
+    },
+    {
+      "id": "unsupported_version",
+      "document": {
+        "apiVersion": "batz/v9",
+        "kind": "PipelineBinding",
+        "id": "demo",
+        "definition": "repo://pipelines/aws-cloudtrail.yaml",
+        "version": 1,
+        "route": "local_raw",
+        "input": {
+          "path": "repo://fixtures/cloudtrail/api-read.json"
+        }
+      },
+      "expected": {
+        "exit": 2,
+        "collector_started": false,
+        "evidence_changed": false
+      }
+    }
+  ]
+}

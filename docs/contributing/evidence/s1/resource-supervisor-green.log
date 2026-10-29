@@ -1,0 +1,19 @@
+=== RUN   TestCancelledRunReportsCancellation
+--- PASS: TestCancelledRunReportsCancellation (0.00s)
+=== RUN   TestRAMMeasurementIncludesDescendantsWithoutCutoff
+    resources_test.go:89: tree RSS samples=7 average=125459309 peak=145915904
+--- PASS: TestRAMMeasurementIncludesDescendantsWithoutCutoff (0.75s)
+=== RUN   TestScratchWatchdogStopsAndSettlesActualDescendants
+    resources_test.go:128: writer stopped at 90112 bytes for 65536-byte threshold
+--- PASS: TestScratchWatchdogStopsAndSettlesActualDescendants (0.27s)
+=== RUN   TestChildDeadlineRemainsOperationalFailure
+--- PASS: TestChildDeadlineRemainsOperationalFailure (0.15s)
+PASS
+ok  	batz/internal/run	2.279s
+=== RUN   TestNativeCollectorReceivesReservedEnvironmentAndReadonlyContext
+--- PASS: TestNativeCollectorReceivesReservedEnvironmentAndReadonlyContext (3.70s)
+=== RUN   TestRunReportsRAMMeasurementsWithoutMemoryCutoff
+    native_test.go:207: native model RAM measurements: map[average_rss_bytes:2.504704e+08 measurement_error:<nil> peak_rss_bytes:5.52927232e+08 sample_interval_ms:100 samples:30 scratch_peak_bytes:5.19006e+06 unavailable_samples:0 wall_ms:2965]
+--- PASS: TestRunReportsRAMMeasurementsWithoutMemoryCutoff (3.06s)
+PASS
+ok  	batz/internal/app	7.626s

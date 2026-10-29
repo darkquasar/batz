@@ -1,0 +1,39 @@
+{
+  "root": "/private/tmp/batz-s2-template-writer/checkout",
+  "base": "70ada14b1d4c245fef8893e4ecca9b20c47b6cfd",
+  "head": "70ada14b1d4c245fef8893e4ecca9b20c47b6cfd",
+  "lead": "/Users/martinpopolito/GitHub/batz",
+  "changed": {
+    "docs/usage/explain.md": {
+      "before": {
+        "sha256": "a7176d11e1d78ed328bd5ecafeaddb00a8430ae655160611723b61c33561aacf",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "8ca05ba8c8e981fa7d5fb6e76697f6e2259a1c4805277bbbb3945cf9926128dd",
+        "mode": 420
+      }
+    },
+    "internal/app/preview.go": {
+      "before": {
+        "sha256": "1b132ce2249b49fa48aa7ed953756cb4b07f22346e11916c5b1d7f3c593c29c9",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "9bb8fcc928ff1920cf99d41c5823125d56d659a13652d9e7055f1a7ec988a3cf",
+        "mode": 420
+      }
+    },
+    "internal/app/preview_review_test.go": {
+      "before": {
+        "sha256": "4b50135da2bbb90b01203b1d4cc4c25ca66512c1c442c4881fb0633691a718aa",
+        "mode": 420
+      },
+      "after": {
+        "sha256": "f6937373cbf4a73dbf50c880d19180c69288a2c62838a1e4e45812875f967736",
+        "mode": 420
+      }
+    }
+  },
+  "baseline_files_unchanged_in_lead": 203
+}

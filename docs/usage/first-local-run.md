@@ -1,0 +1,60 @@
+# First local CloudTrail run
+
+This is the narrow S1 development path: one uncompressed CloudTrail `Records`
+JSON file, with a compact S3 GetObject/IAMUser mapping. Other valid events remain
+in parsed/source-staging evidence with unsupported mapping coverage. This is not
+full CloudTrail support. RAM is monitored without a Batz cutoff; each run reports average and peak usage
+for collection/model processes. Scratch uses a sampled 1 GiB stop threshold, so
+brief overshoot is possible. See the [owner decision](../contracts/s1-macos-budget-decision.md).
+
+From the app checkout, after the project-local tools have been prepared:
+
+```sh
+runtime/.local/batz explain pipelines/aws-cloudtrail.yaml
+runtime/.local/batz run pipelines/aws-cloudtrail.yaml \
+  --project . --workspace /tmp/batz-example --route local_raw \
+  --binding-id demo --input path=repo://fixtures/cloudtrail/api-read.json
+```
+
+`repo://fixtures/...` resolves inside this content checkout. `fixtures` contains
+synthetic test data; another explicit regular file path can be selected. Execution
+requires an explicit workspace. Reusing `demo` retains its prior parsed membership;
+S1 rebuilds all of it. Reliable skip/replay/reconciliation is later S4 work.
+
+```text
++-------------+  native Bento  +----------------+  native SQLMesh  +----------------+
+| Source JSON | =============> | Parsed Parquet | ===============> | Reader catalog |
++-------------+                +----------------+                  +----------------+
+```
+
+The command emits a JSON RunReport with the exact catalog path and revision.
+Use that path in ordinary DuckDB SQL:
+
+```sql
+ATTACH '/absolute/path/from/report/catalog' AS revision_a (READ_ONLY);
+SELECT event.action, "user".id, "@timestamp", batz.origins
+FROM revision_a.demo.api_activity;
+SELECT * FROM revision_a.demo.source_staging;
+SELECT * FROM revision_a.demo.parsed;
+SELECT * FROM revision_a.batz_inventory.membership;
+```
+
+Each publication has a separate immutable catalog and literal Parquet membership.
+A later run returns another catalog; the prior catalog remains queryable. The
+physical catalog currently lives alongside its normalized revision; use the
+reported path instead of deriving it from an example directory layout. Catalog
+relocation/setup is later work; the inventory retains artifact-relative data paths.
+
+Full source payloads and origins remain available. Source timestamps keep supplied
+precision, original text and offsets; synthetic tests distinguish nanosecond
+storage from the second-granular source fixture. Undated records have null time.
+
+Bare explain requires no workspace and executes no collector or SQLMesh project.
+Only level 1 is implemented; deeper levels report unavailable. Saved bindings,
+configuration layering, remote routes, recovery commands and portable reader setup
+remain later plan slices. Do not mistake their absence for successful empty output.
+
+Default run exit is zero for checked publication, including record-level partial;
+`--strict` returns 6 for published partial and keeps that revision. Invalid input,
+missing capability, integrity failure and busy ownership have distinct nonzero
+exits. A native/model failure cannot replace the prior normalized pointer.

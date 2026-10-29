@@ -1,0 +1,25 @@
+apiVersion: batz/v0alpha1
+kind: SourcePipeline
+name: aws-cloudtrail
+version: 1
+normalization:
+  project: repo://normalization
+routes:
+  local_raw:
+    input:
+      engine: bento
+      config: repo://collector/configs/cloudtrail/local-records.yaml
+      params:
+        path: {type: path, required: true, env: BATZ_SOURCE_PATH}
+    output:
+      parsed: {format: parquet}
+      normalized:
+        models:
+          api_activity: cloudtrail.api_activity
+explain:
+  examples:
+    - id: api-read
+      route: local_raw
+      input: repo://fixtures/cloudtrail/api-read.json
+      sha256: 72f8117ea2033e4b391f12ed1948d681f88a6a0310c46e07dce4aa9d53c1e8c9
+      expectations: repo://fixtures/cloudtrail/api-read.expected.json

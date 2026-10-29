@@ -1,0 +1,14 @@
+=== RUN   TestOfflineSampleShowsActualValuesAtEveryBoundary
+--- PASS: TestOfflineSampleShowsActualValuesAtEveryBoundary (4.23s)
+=== RUN   TestRepeatedPreviewHasStableSemanticSections
+--- PASS: TestRepeatedPreviewHasStableSemanticSections (7.28s)
+=== RUN   TestExplicitExampleCannotUseIncompatibleRoute
+--- PASS: TestExplicitExampleCannotUseIncompatibleRoute (0.00s)
+=== RUN   TestPreviewMissingRuntimeNeverDownloadsOrCreatesState
+--- PASS: TestPreviewMissingRuntimeNeverDownloadsOrCreatesState (0.00s)
+PASS
+ok  	batz/internal/app	12.385s
+=== RUN   TestNativeSandboxDeniesOutsideDataAndNetwork
+--- PASS: TestNativeSandboxDeniesOutsideDataAndNetwork (0.09s)
+PASS
+ok  	batz/internal/scratch	1.219s

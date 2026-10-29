@@ -1,0 +1,23 @@
+{
+  "status": "S2 complete within accepted scope",
+  "root": "/Users/martinpopolito/GitHub/batz",
+  "base": null,
+  "head": null,
+  "branch": "unborn main",
+  "source_snapshot": "final-source.json",
+  "source_snapshot_sha256": "b9359c990547dee5132d0bd287d8865039dcdf80aa3dde2335440c6c45506b5f",
+  "verification": "final-check-results.json",
+  "go_tests_and_subtests_passed": 128,
+  "python_validation_cases_passed": 8,
+  "review": "whole-s2-review.txt",
+  "review_disposition": "review-disposition.json",
+  "acceptance": "acceptance.json",
+  "test_efficiency": "test-cost-after.json",
+  "adr": "docs/adr/0001-test-at-the-cheapest-sufficient-layer.md",
+  "cli_binary_sha256": "50a88989acd481d9ef970a248630ff1ca1183a192b31e35d4c74043ac8678185",
+  "no_owner_git_changes": "No staging, commits, pushes or worktree cleanup.",
+  "documentation_only_after_verification": [
+    "docs/adr/README.md",
+    "docs/adr/0001-test-at-the-cheapest-sufficient-layer.md"
+  ]
+}

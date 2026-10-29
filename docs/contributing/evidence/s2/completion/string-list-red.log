@@ -1,0 +1,9 @@
+{"Time":"2026-10-29T15:57:26.586214+10:00","Action":"start","Package":"batz/internal/config"}
+{"Time":"2026-10-29T15:57:26.913275+10:00","Action":"run","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray"}
+{"Time":"2026-10-29T15:57:26.913363+10:00","Action":"output","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Output":"=== RUN   TestStringListRequiresAJSONArray\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:57:26.913668+10:00","Action":"output","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Output":"    resolve_test.go:211: non-array JSON admitted as a string list: \u003cnil\u003e\n","OutputType":"error"}
+{"Time":"2026-10-29T15:57:26.913885+10:00","Action":"output","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Output":"--- FAIL: TestStringListRequiresAJSONArray (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:57:26.913888+10:00","Action":"fail","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Elapsed":0}
+{"Time":"2026-10-29T15:57:26.913899+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:57:26.914209+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\tbatz/internal/config\t0.327s\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:57:26.914224+10:00","Action":"fail","Package":"batz/internal/config","Elapsed":0.328}

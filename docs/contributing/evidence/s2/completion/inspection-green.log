@@ -1,0 +1,12 @@
+{"Time":"2026-10-29T15:44:01.180863+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T15:44:01.495678+10:00","Action":"run","Package":"batz/internal/app","Test":"TestInspectionOperationalFailureIsNotIntegrityFailure"}
+{"Time":"2026-10-29T15:44:01.495755+10:00","Action":"output","Package":"batz/internal/app","Test":"TestInspectionOperationalFailureIsNotIntegrityFailure","Output":"=== RUN   TestInspectionOperationalFailureIsNotIntegrityFailure\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:07.165413+10:00","Action":"output","Package":"batz/internal/app","Test":"TestInspectionOperationalFailureIsNotIntegrityFailure","Output":"--- PASS: TestInspectionOperationalFailureIsNotIntegrityFailure (5.67s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:07.165469+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestInspectionOperationalFailureIsNotIntegrityFailure","Elapsed":5.67}
+{"Time":"2026-10-29T15:44:07.165702+10:00","Action":"run","Package":"batz/internal/app","Test":"TestWrongReviewedSampleValueFailsIntegrity"}
+{"Time":"2026-10-29T15:44:07.165705+10:00","Action":"output","Package":"batz/internal/app","Test":"TestWrongReviewedSampleValueFailsIntegrity","Output":"=== RUN   TestWrongReviewedSampleValueFailsIntegrity\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:12.412856+10:00","Action":"output","Package":"batz/internal/app","Test":"TestWrongReviewedSampleValueFailsIntegrity","Output":"--- PASS: TestWrongReviewedSampleValueFailsIntegrity (5.25s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:12.412973+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestWrongReviewedSampleValueFailsIntegrity","Elapsed":5.25}
+{"Time":"2026-10-29T15:44:12.412988+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:12.417228+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t11.236s\n"}
+{"Time":"2026-10-29T15:44:12.417267+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":11.236}

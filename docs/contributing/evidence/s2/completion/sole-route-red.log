@@ -1,0 +1,9 @@
+{"Time":"2026-10-29T15:45:21.721816+10:00","Action":"start","Package":"batz/internal/config"}
+{"Time":"2026-10-29T15:45:22.097915+10:00","Action":"run","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector"}
+{"Time":"2026-10-29T15:45:22.098231+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Output":"=== RUN   TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:45:22.098273+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Output":"    resolve_test.go:61: sole route and defaults unresolved: {Definition: Workspace: ID: Route: CaseID: Version:0 Values:map[input:map[]] Origins:map[]}\n","OutputType":"error"}
+{"Time":"2026-10-29T15:45:22.098402+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Output":"--- FAIL: TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:45:22.098407+10:00","Action":"fail","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Elapsed":0}
+{"Time":"2026-10-29T15:45:22.098417+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:45:22.098714+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\tbatz/internal/config\t0.377s\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:45:22.098723+10:00","Action":"fail","Package":"batz/internal/config","Elapsed":0.377}

@@ -1,0 +1,5 @@
+=== RUN   TestRunReportsRAMMeasurementsWithoutMemoryCutoff
+    native_test.go:207: native model RAM measurements: map[average_rss_bytes:2.27559196e+08 measurement_error:<nil> peak_rss_bytes:4.23641088e+08 sample_interval_ms:100 samples:36 unavailable_samples:0 wall_ms:3550]
+--- PASS: TestRunReportsRAMMeasurementsWithoutMemoryCutoff (3.68s)
+PASS
+ok  	batz/internal/app	4.104s

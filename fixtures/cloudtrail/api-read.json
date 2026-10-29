@@ -1,0 +1,29 @@
+{
+  "Records": [
+    {
+      "eventVersion": "1.09",
+      "eventID": "11111111-2222-4333-8444-555555555555",
+      "eventTime": "2026-10-25T12:00:00Z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "GetObject",
+      "awsRegion": "ap-southeast-2",
+      "sourceIPAddress": "192.0.2.10",
+      "userAgent": "synthetic-ci-fixture",
+      "userIdentity": {
+        "type": "IAMUser",
+        "accountId": "111122223333",
+        "arn": "arn:aws:iam::111122223333:user/example-responder"
+      },
+      "requestParameters": {
+        "bucketName": "example-data",
+        "key": "example.txt"
+      },
+      "responseElements": null,
+      "eventType": "AwsApiCall",
+      "eventCategory": "Data",
+      "managementEvent": false,
+      "readOnly": true,
+      "unmapped_example": "kept"
+    }
+  ]
+}

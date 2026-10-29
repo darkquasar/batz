@@ -1,0 +1,4 @@
+=== RUN   TestSignalCancellationPreservesParsedEvidenceAndReleasesOwner
+--- PASS: TestSignalCancellationPreservesParsedEvidenceAndReleasesOwner (0.15s)
+PASS
+ok  	batz/internal/app	0.469s

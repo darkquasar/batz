@@ -1,0 +1,4 @@
+=== RUN   TestExplicitLocalExampleWithRouteIsAccepted
+--- PASS: TestExplicitLocalExampleWithRouteIsAccepted (3.97s)
+PASS
+ok  	batz/internal/app	4.260s

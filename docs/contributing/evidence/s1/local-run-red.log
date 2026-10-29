@@ -1,0 +1,7 @@
+=== RUN   TestLocalFixturePublishesQueryableRevision
+    run_test.go:24: local run must publish a queryable revision; exit=3 stderr=incomplete-capability: local run is not implemented
+         stdout=
+--- FAIL: TestLocalFixturePublishesQueryableRevision (0.00s)
+FAIL
+FAIL	batz/internal/app	0.235s
+FAIL

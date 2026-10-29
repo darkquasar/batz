@@ -1,0 +1,4 @@
+=== RUN   TestSameIntervalNewHistoricalMembershipIsEvaluated
+--- PASS: TestSameIntervalNewHistoricalMembershipIsEvaluated (6.60s)
+PASS
+ok  	batz/internal/app	6.888s

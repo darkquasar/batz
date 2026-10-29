@@ -1,0 +1,17 @@
+[project]
+name = "batz-runtime"
+version = "0.0.0"
+description = "Batz-owned SQLMesh and DuckDB runtime scripts"
+requires-python = "==3.12.12"
+dependencies = [
+    "sqlmesh==0.236.4",
+    "duckdb==1.5.4",
+]
+
+[dependency-groups]
+# Document/schema verification only; not needed for pipeline execution.
+checks = ["jsonschema==4.25.1"]
+
+[tool.uv]
+# These are owned runtime scripts, not an installable Python distribution.
+package = false

@@ -1,0 +1,9 @@
+{"Time":"2026-10-29T15:48:56.717553+10:00","Action":"start","Package":"batz/internal/config"}
+{"Time":"2026-10-29T15:48:56.97316+10:00","Action":"run","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace"}
+{"Time":"2026-10-29T15:48:56.973671+10:00","Action":"output","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Output":"=== RUN   TestBindingDefinitionUsesItsSelectedWorkspace\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:48:56.974591+10:00","Action":"output","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Output":"    resolve_test.go:160: definition resolved before its workspace: got \"workspace://pipelines/source.yaml\" want \"/var/folders/2t/q7xrz9zd3t36gthk6k4lzk1w0000gp/T/TestBindingDefinitionUsesItsSelectedWorkspace535163018/001/evidence/pipelines/source.yaml\"\n","OutputType":"error"}
+{"Time":"2026-10-29T15:48:56.974879+10:00","Action":"output","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Output":"--- FAIL: TestBindingDefinitionUsesItsSelectedWorkspace (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:48:56.974885+10:00","Action":"fail","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Elapsed":0}
+{"Time":"2026-10-29T15:48:56.974895+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:48:56.975951+10:00","Action":"output","Package":"batz/internal/config","Output":"FAIL\tbatz/internal/config\t0.258s\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:48:56.975988+10:00","Action":"fail","Package":"batz/internal/config","Elapsed":0.258}

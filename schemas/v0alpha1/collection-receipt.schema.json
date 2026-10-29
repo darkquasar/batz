@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batz.invalid/schemas/v0alpha1/collection-receipt.schema.json",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "const": "batz/v0alpha1"
+    },
+    "kind": {
+      "const": "CollectionReceipt"
+    },
+    "identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/input"
+      }
+    },
+    "source_files": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/file"
+      }
+    },
+    "parsed_files": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/file"
+      }
+    },
+    "reject_files": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/file"
+      }
+    },
+    "counts": {
+      "allOf": [
+        {
+          "$ref": "common.schema.json#/$defs/counts"
+        },
+        {
+          "properties": {
+            "boundary": {
+              "const": "parse"
+            },
+            "unsupported": {
+              "const": 0
+            },
+            "excluded": {
+              "const": 0
+            }
+          }
+        }
+      ]
+    },
+    "complete": {
+      "const": true
+    },
+    "continuation": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "identity",
+    "inputs",
+    "source_files",
+    "parsed_files",
+    "reject_files",
+    "counts",
+    "complete",
+    "continuation"
+  ],
+  "additionalProperties": false
+}

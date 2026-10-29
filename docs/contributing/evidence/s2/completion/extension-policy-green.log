@@ -1,0 +1,16 @@
+{"Time":"2026-10-29T16:07:01.850417+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T16:07:02.204048+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch"}
+{"Time":"2026-10-29T16:07:02.204107+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch","Output":"=== RUN   TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:02.234367+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch","Output":"--- PASS: TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:02.234386+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch","Elapsed":0.03}
+{"Time":"2026-10-29T16:07:02.23442+10:00","Action":"run","Package":"batz/internal/app","Test":"TestOfflineSampleShowsActualValuesAtEveryBoundary"}
+{"Time":"2026-10-29T16:07:02.234423+10:00","Action":"output","Package":"batz/internal/app","Test":"TestOfflineSampleShowsActualValuesAtEveryBoundary","Output":"=== RUN   TestOfflineSampleShowsActualValuesAtEveryBoundary\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:06.490202+10:00","Action":"output","Package":"batz/internal/app","Test":"TestOfflineSampleShowsActualValuesAtEveryBoundary","Output":"--- PASS: TestOfflineSampleShowsActualValuesAtEveryBoundary (4.26s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:06.49022+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestOfflineSampleShowsActualValuesAtEveryBoundary","Elapsed":4.26}
+{"Time":"2026-10-29T16:07:06.490226+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData"}
+{"Time":"2026-10-29T16:07:06.490227+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData","Output":"=== RUN   TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:10.454943+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData","Output":"--- PASS: TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData (3.96s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:10.454981+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData","Elapsed":3.96}
+{"Time":"2026-10-29T16:07:10.454986+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:07:10.456287+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t8.606s\n"}
+{"Time":"2026-10-29T16:07:10.4563+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":8.606}

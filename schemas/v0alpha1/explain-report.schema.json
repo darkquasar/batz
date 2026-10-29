@@ -1,0 +1,310 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batz.invalid/schemas/v0alpha1/explain-report.schema.json",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "const": "batz/v0alpha1"
+    },
+    "kind": {
+      "const": "ExplainReport"
+    },
+    "pipeline": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "project": {
+      "type": "string",
+      "minLength": 1
+    },
+    "routes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+          },
+          "engine": {
+            "type": "string",
+            "minLength": 1
+          },
+          "config": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parsed_format": {
+            "type": "string",
+            "minLength": 1
+          },
+          "models": {
+            "type": "object",
+            "minProperties": 1,
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "basis": {
+            "enum": [
+              "declared",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "engine",
+          "config",
+          "parsed_format",
+          "models",
+          "basis"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "assets": {
+      "$ref": "common.schema.json#/$defs/hashes"
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/diagnostic"
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "route": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "inputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "native": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "outputs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "basis": {
+            "enum": [
+              "declared",
+              "inferred",
+              "sample-executed",
+              "unavailable"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "route",
+          "kind",
+          "inputs",
+          "native",
+          "outputs",
+          "basis",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "structures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "basis": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "native_type": {
+                  "type": "string"
+                },
+                "nullable": {
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "encoding": {
+                  "type": "string"
+                },
+                "fields": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/field"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "native_type",
+                "nullable",
+                "encoding",
+                "fields"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "stage",
+          "basis",
+          "fields"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string"
+          },
+          "basis": {
+            "type": "string"
+          },
+          "records": {
+            "type": "array",
+            "items": {}
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "stage",
+          "basis",
+          "records",
+          "rows",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": {},
+          "source": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "value",
+          "source",
+          "field"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "runtime": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "pipeline",
+    "version",
+    "level",
+    "project",
+    "routes",
+    "assets",
+    "diagnostics"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "field": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "native_type": {
+          "type": "string"
+        },
+        "nullable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "encoding": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "native_type",
+        "nullable",
+        "encoding",
+        "fields"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

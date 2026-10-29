@@ -1,0 +1,16 @@
+{"Time":"2026-10-29T15:44:25.566014+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T15:44:25.850757+10:00","Action":"run","Package":"batz/internal/app","Test":"TestExplainStagesWithoutExecutingRuntime"}
+{"Time":"2026-10-29T15:44:25.852245+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainStagesWithoutExecutingRuntime","Output":"=== RUN   TestExplainStagesWithoutExecutingRuntime\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:25.859153+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainStagesWithoutExecutingRuntime","Output":"--- PASS: TestExplainStagesWithoutExecutingRuntime (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:25.859173+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestExplainStagesWithoutExecutingRuntime","Elapsed":0.01}
+{"Time":"2026-10-29T15:44:25.860872+10:00","Action":"run","Package":"batz/internal/app","Test":"TestSavedBindingEnrichesExplainWithOrigin"}
+{"Time":"2026-10-29T15:44:25.860876+10:00","Action":"output","Package":"batz/internal/app","Test":"TestSavedBindingEnrichesExplainWithOrigin","Output":"=== RUN   TestSavedBindingEnrichesExplainWithOrigin\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:25.86089+10:00","Action":"output","Package":"batz/internal/app","Test":"TestSavedBindingEnrichesExplainWithOrigin","Output":"--- PASS: TestSavedBindingEnrichesExplainWithOrigin (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:25.860892+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestSavedBindingEnrichesExplainWithOrigin","Elapsed":0}
+{"Time":"2026-10-29T15:44:25.860894+10:00","Action":"run","Package":"batz/internal/app","Test":"TestExplainUsesContextSelectedNormalizationProject"}
+{"Time":"2026-10-29T15:44:25.860896+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainUsesContextSelectedNormalizationProject","Output":"=== RUN   TestExplainUsesContextSelectedNormalizationProject\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:31.121316+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainUsesContextSelectedNormalizationProject","Output":"--- PASS: TestExplainUsesContextSelectedNormalizationProject (5.26s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:31.121346+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestExplainUsesContextSelectedNormalizationProject","Elapsed":5.26}
+{"Time":"2026-10-29T15:44:31.121386+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:44:31.12376+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t5.557s\n"}
+{"Time":"2026-10-29T15:44:31.123775+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":5.558}

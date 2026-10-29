@@ -1,0 +1,27 @@
+.serena/
+
+# Build and release outputs; release binaries are produced by CI/CD.
+/batz
+/batz-collector
+/bin/
+/build/
+/dist/
+*.test
+coverage.out
+/coverage/
+
+# Local workspace state and tool caches.
+.batz/
+.cache/
+/.local/
+
+# Python environments and generated caches (at any depth).
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local macOS metadata.
+.DS_Store

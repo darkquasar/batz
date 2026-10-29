@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/Users/martinpopolito/GitHub/batz/runtime/.local/batz",
+    "run",
+    "pipelines/aws-cloudtrail.yaml",
+    "--project",
+    "/Users/martinpopolito/GitHub/batz",
+    "--workspace",
+    "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-cli-demo",
+    "--route",
+    "local_raw",
+    "--binding-id",
+    "demo",
+    "--input",
+    "path=repo://fixtures/cloudtrail/api-read.json"
+  ],
+  "exit": 0,
+  "ordinary_sql": {
+    "command": [
+      "/Users/martinpopolito/GitHub/batz/runtime/.local/venv/bin/python",
+      "-I",
+      "-c",
+      "import duckdb,json,sys; c=duckdb.connect(sys.argv[1],read_only=True); print(json.dumps(c.execute(sys.argv[2]).fetchall()))",
+      "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-cli-demo/.batz/normalized/716b44879d3bd7c63994ebd4d429fd1b/reader.duckdb",
+      "SELECT event.action,\"user\".id,epoch_ns(\"@timestamp\"),batz.time.fraction_digits,batz.origins FROM demo.api_activity"
+    ],
+    "exit": 0
+  }
+}

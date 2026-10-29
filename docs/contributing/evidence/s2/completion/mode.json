@@ -1,0 +1,10 @@
+{
+  "mode": "serial",
+  "strategy": "critical-tdd",
+  "authority": "User: complete slice 2 and continue work",
+  "plan": "batz-specs/docs/specs/01-dfir-log-pipeline/pipeline-plan.md#s2",
+  "rationale": "S2 owns serial resolver/report/projection changes; shared app/config/run interfaces. Scratch supervision changes the invariant that every writable preview path counts toward the scratch stop threshold.",
+  "boundary_acceptance": "S2-B: sampled scratch accounting covers the complete kernel-writable preview root and settles children on breach.",
+  "whole_change_review": "Fresh independent read-only S2 review required after composed checks, including scratch boundary acceptance.",
+  "scope": "S2-A/B/C and accepted contract with owner RAM telemetry-only amendment. No S3+ features, commits, source acquisition or publication."
+}

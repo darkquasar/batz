@@ -1,0 +1,16 @@
+input:
+  batz_file: {}
+pipeline:
+  threads: 1
+  processors:
+    - mapping: |
+        root = if this.type() != "object" || this.Records.type() != "array" {
+          throw("unsupported-shape: expected CloudTrail Records array")
+        } else { this.Records }
+    - unarchive:
+        format: json_array
+    - mapping: |
+        root.payload = content().string()
+        root.ordinal = count("records") - 1
+output:
+  batz_parquet_receipt: {}

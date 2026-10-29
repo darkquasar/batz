@@ -1,0 +1,10 @@
+=== RUN   TestExplicitCaseSelectsOnlyRequestedBinding
+    resolve_test.go:105: /var/folders/2t/q7xrz9zd3t36gthk6k4lzk1w0000gp/T/TestExplicitCaseSelectsOnlyRequestedBinding527223681/002/case.yaml: pipelines.1: input is required
+--- FAIL: TestExplicitCaseSelectsOnlyRequestedBinding (0.00s)
+FAIL
+FAIL	batz/internal/config	0.402s
+=== RUN   TestWrongReviewedSampleValueFailsIntegrity
+--- PASS: TestWrongReviewedSampleValueFailsIntegrity (4.48s)
+PASS
+ok  	batz/internal/app	4.764s
+FAIL

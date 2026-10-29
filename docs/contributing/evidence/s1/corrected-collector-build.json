@@ -1,0 +1,11 @@
+{
+  "command": [
+    "/Users/martinpopolito/GitHub/batz/runtime/.local/go/bin/go",
+    "build",
+    "-o",
+    "runtime/.local/batz-collector",
+    "./cmd/batz-collector"
+  ],
+  "exit": 0,
+  "collector_sha256": "d34ef5b0a04b553306d3b9a7b0042f057eb85ae0951e27dc5ab94bf0ffbfb061"
+}

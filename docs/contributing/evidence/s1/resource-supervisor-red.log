@@ -1,0 +1,11 @@
+=== RUN   TestRAMMeasurementIncludesDescendantsWithoutCutoff
+    resources_test.go:51: tree RSS samples=7 average=124939702 peak=145113088
+--- PASS: TestRAMMeasurementIncludesDescendantsWithoutCutoff (0.73s)
+=== RUN   TestScratchWatchdogStopsAndSettlesActualDescendants
+    resources_test.go:56: scratch bound was not enforced: {AverageRSSBytes:0x17a488d9a060 PeakRSSBytes:0x17a488d9a068 Samples:14 UnavailableSamples:0 SampleIntervalMS:100 WallMS:1389 MeasurementError:<nil>} <nil>
+--- FAIL: TestScratchWatchdogStopsAndSettlesActualDescendants (1.39s)
+=== RUN   TestChildDeadlineRemainsOperationalFailure
+--- PASS: TestChildDeadlineRemainsOperationalFailure (0.16s)
+FAIL
+FAIL	batz/internal/run	2.691s
+FAIL

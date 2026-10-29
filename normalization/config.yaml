@@ -1,0 +1,33 @@
+{
+  "gateways": {
+    "local": {
+      "connection": {
+        "type": "duckdb",
+        "database": "working.duckdb",
+        "concurrent_tasks": 1,
+        "extensions": [],
+        "connector_config": {
+          "threads": 1,
+          "autoinstall_known_extensions": false,
+          "autoload_known_extensions": false
+        }
+      },
+      "state_connection": {
+        "type": "duckdb",
+        "database": "sqlmesh-state.duckdb",
+        "extensions": [],
+        "connector_config": {
+          "threads": 1,
+          "autoinstall_known_extensions": false,
+          "autoload_known_extensions": false
+        }
+      }
+    }
+  },
+  "default_gateway": "local",
+  "model_defaults": {
+    "dialect": "duckdb",
+    "start": "2026-01-01"
+  },
+  "disable_anonymized_analytics": true
+}

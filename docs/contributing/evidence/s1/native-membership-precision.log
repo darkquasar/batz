@@ -1,0 +1,10 @@
+=== RUN   TestSyntheticNanosecondProbeSurvivesNativePublication
+    native_test.go:89: precision loss: got [] want [["coarse",1792929600123000000,3,"TIMESTAMP_NS"],["nano-1",1792929600000000001,9,"TIMESTAMP_NS"],["nano-2",1792929600000000002,9,"TIMESTAMP_NS"]]
+--- FAIL: TestSyntheticNanosecondProbeSurvivesNativePublication (3.54s)
+=== RUN   TestSameIntervalNewHistoricalMembershipIsEvaluated
+--- PASS: TestSameIntervalNewHistoricalMembershipIsEvaluated (5.90s)
+=== RUN   TestExplicitEmptyNativeInputPublishesCheckedEmptyRevision
+--- PASS: TestExplicitEmptyNativeInputPublishesCheckedEmptyRevision (2.88s)
+FAIL
+FAIL	batz/internal/app	12.721s
+FAIL

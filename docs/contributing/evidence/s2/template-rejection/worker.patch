@@ -1,0 +1,229 @@
+--- a/docs/usage/explain.md
++++ b/docs/usage/explain.md
+@@ -53,3 +53,12 @@
+ returns 2, actual execution failure 1, and integrity/expectation failure 4. It never
+ fetches dependencies or fixtures. Project Python and symlinked native content are
+ refused. Use --format json for the versioned alpha report.
++
++Preview admits only native SQLMesh SQL (including `@` macros) and YAML in .sql,
++.yaml and .yml files, plus CSV seed data. Jinja is refused before scratch is
++created or the native runtime starts: the delimiters `{{`, `{%` and `{#`, and the
++`JINJA_QUERY_BEGIN`, `JINJA_STATEMENT_BEGIN` and `JINJA_END` markers in any letter
++case. The check is a conservative text scan, so these markers are refused even
++inside SQL strings or comments. CSV rows are data and are not scanned. The
++diagnostic names the file, never its content. The scan is an admission rule, not
++a sandbox; the scratch filesystem and network isolation above remain the boundary.
+--- a/internal/app/preview.go
++++ b/internal/app/preview.go
+@@ -1,6 +1,7 @@
+ package app
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"crypto/sha256"
+ 	"encoding/hex"
+@@ -161,6 +162,14 @@
+ 	return 0, nil
+ }
+ 
++// templateMarkers are Jinja delimiters and SQLMesh Jinja block markers, matched
++// case-insensitively. The scan is deliberately conservative: markers inside SQL
++// strings or comments are refused too. It is an admission rule, not a sandbox.
++var templateMarkers = [][]byte{
++	[]byte("{{"), []byte("{%"), []byte("{#"),
++	[]byte("JINJA_QUERY_BEGIN"), []byte("JINJA_STATEMENT_BEGIN"), []byte("JINJA_END"),
++}
++
+ func admitProject(root string) error {
+ 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+ 		if err != nil {
+@@ -169,15 +178,39 @@
+ 		if entry.Type()&os.ModeSymlink != 0 {
+ 			return fmt.Errorf("symlink in normalization content")
+ 		}
+-		if !entry.IsDir() {
+-			switch filepath.Ext(path) {
+-			case ".sql", ".yaml", ".yml", ".csv":
+-			default:
+-				return fmt.Errorf("unsupported project content: %s", path)
+-			}
+-		}
+-		return nil
++		if entry.IsDir() {
++			return nil
++		}
++		switch filepath.Ext(path) {
++		case ".sql", ".yaml", ".yml":
++			return admitTemplateFree(root, path)
++		case ".csv":
++			// Seed rows are loaded as data, not rendered as templates.
++			return nil
++		default:
++			return fmt.Errorf("unsupported project content: %s", path)
++		}
+ 	})
++}
++
++func admitTemplateFree(root, path string) error {
++	content, err := os.ReadFile(path)
++	if err != nil {
++		return fmt.Errorf("read normalization content: %w", err)
++	}
++	content = bytes.ToUpper(content)
++	for _, marker := range templateMarkers {
++		if !bytes.Contains(content, marker) {
++			continue
++		}
++		relative, err := filepath.Rel(root, path)
++		if err != nil {
++			return err
++		}
++		// Name the file only; project content is never echoed.
++		return fmt.Errorf("unsupported Jinja templating in normalization content: %s", relative)
++	}
++	return nil
+ }
+ func copyProject(source, target string) error {
+ 	return filepath.WalkDir(source, func(path string, entry os.DirEntry, err error) error {
+--- a/internal/app/preview_review_test.go
++++ b/internal/app/preview_review_test.go
+@@ -9,6 +9,7 @@
+ 	"testing"
+ 
+ 	"batz/internal/app"
++	"batz/internal/contracts"
+ )
+ 
+ func previewContent(t *testing.T) string {
+@@ -29,23 +30,119 @@
+ 	return root
+ }
+ 
+-func TestPreviewRejectsProjectPythonInsideSQLTemplateBeforeLaunch(t *testing.T) {
++func TestPreviewRejectsJinjaTemplatingBeforeLaunch(t *testing.T) {
++	const model = "MODEL (name cloudtrail.api_activity, kind FULL);\n"
++	tests := []struct {
++		name    string
++		file    string
++		content string
++		strict  bool
++	}{
++		{"query block", "models/api_activity.sql", model + `JINJA_QUERY_BEGIN;
++SELECT 40 + 2 AS invented_probe;
++JINJA_END;
++`, true},
++		{"lowercase statement block", "models/api_activity.sql", model + `jinja_statement_begin;
++SELECT 40 + 2 AS invented_probe;
++Jinja_End;
++`, false},
++		{"expression delimiter", "models/api_activity.sql", model + `SELECT {{ 40 + 2 }} AS invented_probe;
++`, true},
++		{"statement delimiter", "models/api_activity.sql", model + `{% set invented_probe = 42 %}
++SELECT 42 AS answer;
++`, false},
++		{"comment delimiter", "models/api_activity.sql", model + `{# invented_probe #}
++SELECT 42 AS answer;
++`, true},
++	}
++	for _, tt := range tests {
++		t.Run(tt.name, func(t *testing.T) {
++			root := previewContent(t)
++			if err := os.WriteFile(filepath.Join(root, "normalization", tt.file), []byte(tt.content), 0600); err != nil {
++				t.Fatal(err)
++			}
++			assertTemplatingRejected(t, root, tt.file, tt.strict)
++		})
++	}
++	t.Run("yaml config delimiter", func(t *testing.T) {
++		root := previewContent(t)
++		config := filepath.Join(root, "normalization/config.yaml")
++		data, err := os.ReadFile(config)
++		if err != nil {
++			t.Fatal(err)
++		}
++		templated := bytes.Replace(data, []byte(`"disable_anonymized_analytics": true`), []byte(`"disable_anonymized_analytics": {{ 'invented_probe' != '' }}`), 1)
++		if bytes.Equal(templated, data) {
++			t.Fatal("test did not template the project config")
++		}
++		if err = os.WriteFile(config, templated, 0600); err != nil {
++			t.Fatal(err)
++		}
++		assertTemplatingRejected(t, root, "config.yaml", false)
++	})
++}
++
++// assertTemplatingRejected requires the templating diagnostic itself, so an
++// unavailable native runtime (also exit 3 without a run) cannot pass.
++func assertTemplatingRejected(t *testing.T, root, file string, strict bool) {
++	t.Helper()
++	args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json"}
++	want := 0
++	if strict {
++		args = append(args, "--strict")
++		want = 3
++	}
++	var out, diagnostics bytes.Buffer
++	code := app.Execute(args, &out, &diagnostics)
++	var report contracts.ExplainReport
++	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
++		t.Fatalf("decode report: %v %s %s", err, &out, &diagnostics)
++	}
++	if code != want || report.Runtime["run"] != nil || report.Runtime["scratch"] != nil {
++		t.Fatalf("templated content reached scratch or native runtime: got %d want %d %s %s", code, want, &out, &diagnostics)
++	}
++	if len(report.Diagnostics) != 1 {
++		t.Fatalf("want one templating diagnostic: %s", &out)
++	}
++	d := report.Diagnostics[0]
++	if d.Category != "incomplete-capability" || d.Code != "preview-failed" || !strings.Contains(d.Message, "unsupported Jinja templating") || !strings.HasSuffix(d.Message, file) {
++		t.Fatalf("templating not identified: %+v", d)
++	}
++	if strings.Contains(out.String(), "invented_probe") {
++		t.Fatalf("diagnostic echoed project content: %s", &out)
++	}
++}
++
++func TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData(t *testing.T) {
+ 	root := previewContent(t)
+-	model := filepath.Join(root, "normalization/models/api_activity.sql")
+-	content := "MODEL (name cloudtrail.api_activity, kind FULL);\nJINJA_QUERY_BEGIN\n{% set sentinel = cycler.__init__.__globals__.__builtins__.open('project-python-sentinel', 'w').write('executed') %}\nSELECT 1 AS probe\nJINJA_END;\n"
+-	if err := os.WriteFile(model, []byte(content), 0600); err != nil {
++	path := filepath.Join(root, "normalization/models/api_activity.sql")
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	native := strings.Replace(string(data), "kind FULL);\n", "kind FULL);\n\n@DEF(mapped_status, 'mapped');\n", 1)
++	native = strings.Replace(native, "s.mapping_status='mapped'", "s.mapping_status=@mapped_status", 1)
++	if !strings.Contains(native, "@DEF(") || !strings.Contains(native, "=@mapped_status") {
++		t.Fatal("test did not add a native SQLMesh macro")
++	}
++	if err = os.WriteFile(path, []byte(native), 0600); err != nil {
++		t.Fatal(err)
++	}
++	// CSV is data rather than SQL code; template-like text there stays admissible.
++	if err = os.MkdirAll(filepath.Join(root, "normalization/seeds"), 0700); err != nil {
++		t.Fatal(err)
++	}
++	if err = os.WriteFile(filepath.Join(root, "normalization/seeds/labels.csv"), []byte("label\n\"{{ 40 + 2 }}\"\n\"{% raw %}\"\n"), 0600); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	var out, diagnostics bytes.Buffer
+ 	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
+-	var report struct {
+-		Runtime map[string]any `json:"runtime"`
++	var report contracts.ExplainReport
++	if err = json.Unmarshal(out.Bytes(), &report); err != nil {
++		t.Fatalf("decode report: %v %s %s", err, &out, &diagnostics)
+ 	}
+-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+-		t.Fatal(err)
+-	}
+-	if code != 3 || report.Runtime["run"] != nil || !bytes.Contains(out.Bytes(), []byte("template")) {
+-		t.Fatalf("executable SQL reached native runtime: %d %s %s", code, &out, &diagnostics)
++	if code != 0 || report.Runtime["run"] == nil || len(report.Samples) == 0 {
++		t.Fatalf("native SQLMesh content not previewed: %d %s %s", code, &out, &diagnostics)
+ 	}
+ }
+ 

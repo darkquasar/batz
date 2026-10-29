@@ -1,0 +1,67 @@
+Reviewer: /root/s2_scratch_boundary_review
+Subject: S2-B complete writable-root accounting, independent read-only boundary review.
+
+No findings in the changed scratch-accounting boundary. Reviewed root:
+/Users/martinpopolito/GitHub/batz; base/head: none, application files untracked.
+No files or Git state were changed, and no tests or native processes were run.
+
++------------------+  scan whole writable root  +----------------------+
+| Scratch watchdog | ========================> | Private scratch root |
++------------------+                           +----------------------+
+
+The change in child.go:250 correctly requires a private root for sandboxed
+execution and replaces narrower stage roots with that complete root. This
+matches the writable filesystem scope constructed in macos.go:35.
+Unsandboxed run accounting retains its prior behavior.
+
+Relevant strengths:
+- Collection, modeling, and inspection use the same sandboxedChild supervision
+  path: run.go:554, run.go:617, and child.go:273.
+- Scratch measurement errors and threshold violations stop the child group and
+  wait for process settlement: child.go:143 and child.go:184.
+- The changed code follows the Uber Go guidance: errors.New for the static
+  guard, early return, a fresh slice for the enforced root, and no new goroutines
+  or lifecycle paths. Existing positional struct literals, static fmt.Errorf
+  calls, and import grouping predate this change; I did not treat them as
+  introduced defects.
+
+I read the complete relevant run-package RED output and the complete GREEN
+output retained in docs/contributing/evidence/s2/completion/:
+- known-failures-red.json: exit 1. The sibling writer completed without a
+  scratch-limit error.
+- scratch-green.json: exit 0, command go test ./internal/run ./internal/scratch
+  -p 1 -count=1 -json. The sibling writer stopped at 81,920 bytes, with 81,925
+  bytes observed against a 65,536-byte sampled threshold. The brief overshoot
+  is consistent with the accepted watchdog policy.
+- The same GREEN run passes actual-descendant settlement, deadline, RAM
+  telemetry, and native filesystem/network-denial tests. RAM remains telemetry
+  only.
+- All six reviewed file hashes match the GREEN evidence. The RED evidence
+  differs only in child.go among these files.
+
+Reviewed SHA-256 values, unchanged on the final read:
+internal/run/child.go
+9c9d4dac5f20f4edb2a19f555de2d7c3ff003857b424ec22dba60a026ca50074
+internal/run/run.go
+5630fce4efe5bae3505a66f8d305e9cee8c868de105e221f580d914118c648e1
+internal/run/preview_budget_test.go
+84f47e127f35bb3a03e5d9e01726e100d55687afc68cbdf70bfb6821cf928993
+internal/run/resources_test.go
+1717135bd9e6d885d99cf13c154d151dcc1ba3c1eb79958889976fd6d7160b54
+internal/scratch/macos.go
+f479200f2f23ecad23f0f5ac1511b44a2e1c2752e63b73a27b86c8e2053b89b4
+internal/scratch/macos_test.go
+965fe0e2711fa86ddbe645e5d711c765187ae82fe41af9c2e7b8f11a394620f9
+
+Read-only commands used: shasum -a 256, nl, sed, cat, diff -u, and Python parsing
+of retained JSON evidence. Reads succeeded; the diff showed only the six added
+accounting/guard lines.
+
+Limitations: this review covers the named accounting change and its retained
+evidence, not all S2 requirements. The existing process-group supervision and
+tests cover ordinary descendants; they do not establish containment of
+deliberately escaped or reparented processes. No hard instantaneous disk or RAM
+quota is claimed. The final whole-S2 review remains a separate gate.
+
+Lead disposition: accepted with no findings in this boundary subject. Review
+does not substitute for the final independent whole-S2 review or composed checks.

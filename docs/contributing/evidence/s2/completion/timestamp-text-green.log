@@ -1,0 +1,52 @@
+{"Time":"2026-10-29T15:52:20.115687+10:00","Action":"start","Package":"batz/internal/config"}
+{"Time":"2026-10-29T15:52:20.362204+10:00","Action":"run","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected"}
+{"Time":"2026-10-29T15:52:20.362517+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Output":"=== RUN   TestExplicitNullDeletesAndBlankIsRejected\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:20.364325+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Output":"--- PASS: TestExplicitNullDeletesAndBlankIsRejected (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:20.364329+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Elapsed":0}
+{"Time":"2026-10-29T15:52:20.36434+10:00","Action":"run","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText"}
+{"Time":"2026-10-29T15:52:20.364342+10:00","Action":"output","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Output":"=== RUN   TestYAMLTimestampInputPreservesItsSuppliedText\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:20.365313+10:00","Action":"output","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Output":"--- PASS: TestYAMLTimestampInputPreservesItsSuppliedText (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:20.365317+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Elapsed":0}
+{"Time":"2026-10-29T15:52:20.365347+10:00","Action":"output","Package":"batz/internal/config","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:20.36564+10:00","Action":"output","Package":"batz/internal/config","Output":"ok  \tbatz/internal/config\t0.249s\n"}
+{"Time":"2026-10-29T15:52:20.365654+10:00","Action":"pass","Package":"batz/internal/config","Elapsed":0.25}
+{"Time":"2026-10-29T15:52:21.990111+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T15:52:22.275624+10:00","Action":"run","Package":"batz/internal/app","Test":"TestExplainPreservesTimestampDefaultText"}
+{"Time":"2026-10-29T15:52:22.275669+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainPreservesTimestampDefaultText","Output":"=== RUN   TestExplainPreservesTimestampDefaultText\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.278874+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplainPreservesTimestampDefaultText","Output":"--- PASS: TestExplainPreservesTimestampDefaultText (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.278882+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestExplainPreservesTimestampDefaultText","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.278903+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition"}
+{"Time":"2026-10-29T15:52:22.278908+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.278917+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-workspace"}
+{"Time":"2026-10-29T15:52:22.278919+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-workspace","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/missing-workspace\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.282582+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-workspace","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/missing-workspace (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.282588+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-workspace","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.282597+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-version"}
+{"Time":"2026-10-29T15:52:22.282601+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-version","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/unknown-version\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.286087+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-version","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/unknown-version (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.286099+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-version","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.286102+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/duplicate-field"}
+{"Time":"2026-10-29T15:52:22.286103+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/duplicate-field","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/duplicate-field\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.289225+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/duplicate-field","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/duplicate-field (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.289241+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/duplicate-field","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.289244+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-asset"}
+{"Time":"2026-10-29T15:52:22.289245+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-asset","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/missing-asset\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.292139+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-asset","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/missing-asset (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.292143+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/missing-asset","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.292145+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/project-python"}
+{"Time":"2026-10-29T15:52:22.292147+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/project-python","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/project-python\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.323906+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/project-python","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/project-python (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.323921+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/project-python","Elapsed":0.03}
+{"Time":"2026-10-29T15:52:22.323934+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/reserved-handoff"}
+{"Time":"2026-10-29T15:52:22.323937+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/reserved-handoff","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/reserved-handoff\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.326458+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/reserved-handoff","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/reserved-handoff (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.326466+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/reserved-handoff","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.326468+10:00","Action":"run","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-route"}
+{"Time":"2026-10-29T15:52:22.32647+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-route","Output":"=== RUN   TestStaticRefusalsDoNotStartAcquisition/unknown-route\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.328844+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-route","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition/unknown-route (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.328849+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition/unknown-route","Elapsed":0}
+{"Time":"2026-10-29T15:52:22.328858+10:00","Action":"output","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition","Output":"--- PASS: TestStaticRefusalsDoNotStartAcquisition (0.05s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.328861+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestStaticRefusalsDoNotStartAcquisition","Elapsed":0.05}
+{"Time":"2026-10-29T15:52:22.328863+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:52:22.330056+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t0.340s\n"}
+{"Time":"2026-10-29T15:52:22.330067+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":0.34}

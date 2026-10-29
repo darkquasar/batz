@@ -1,0 +1,1 @@
+internal/run/run.go:247:31: error strings should not be capitalized (ST1005)

@@ -1,0 +1,4 @@
+=== RUN   TestLocalFixturePublishesQueryableRevision
+--- PASS: TestLocalFixturePublishesQueryableRevision (3.37s)
+PASS
+ok  	batz/internal/app	3.644s

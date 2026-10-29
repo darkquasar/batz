@@ -1,0 +1,7 @@
+{
+  "exec_session": 68289,
+  "exit": 0,
+  "claude_session": "a0e2f393-3925-414d-83f1-6e23cab6c88c",
+  "result_subtype": "success",
+  "settlement": "foreground CLI completed; check wrapper subprocesses were synchronous; no background work reported"
+}

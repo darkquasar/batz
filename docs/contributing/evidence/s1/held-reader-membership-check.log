@@ -1,0 +1,4 @@
+=== RUN   TestExistingReaderSelectsNewRevisionAndIgnoresUncommittedFiles
+--- PASS: TestExistingReaderSelectsNewRevisionAndIgnoresUncommittedFiles (6.53s)
+PASS
+ok  	batz/internal/app	6.897s

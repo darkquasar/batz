@@ -1,0 +1,9 @@
+{"Time":"2026-10-29T15:54:11.235442+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T15:54:11.560721+10:00","Action":"run","Package":"batz/internal/app","Test":"TestRunAggregatesInvalidInputWithMissingValuesAndAssets"}
+{"Time":"2026-10-29T15:54:11.560847+10:00","Action":"output","Package":"batz/internal/app","Test":"TestRunAggregatesInvalidInputWithMissingValuesAndAssets","Output":"=== RUN   TestRunAggregatesInvalidInputWithMissingValuesAndAssets\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:54:11.5624+10:00","Action":"output","Package":"batz/internal/app","Test":"TestRunAggregatesInvalidInputWithMissingValuesAndAssets","Output":"    explain_context_test.go:63: missing \"missing-workspace\" in aggregated diagnostics: {\"category\":\"invalid-input\",\"code\":\"invalid-field\",\"field\":\"\",\"source\":\"cli\",\"message\":\"invalid timestamp since\"}\n","OutputType":"error"}
+{"Time":"2026-10-29T15:54:11.5627+10:00","Action":"output","Package":"batz/internal/app","Test":"TestRunAggregatesInvalidInputWithMissingValuesAndAssets","Output":"--- FAIL: TestRunAggregatesInvalidInputWithMissingValuesAndAssets (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:54:11.562704+10:00","Action":"fail","Package":"batz/internal/app","Test":"TestRunAggregatesInvalidInputWithMissingValuesAndAssets","Elapsed":0}
+{"Time":"2026-10-29T15:54:11.562717+10:00","Action":"output","Package":"batz/internal/app","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:54:11.563214+10:00","Action":"output","Package":"batz/internal/app","Output":"FAIL\tbatz/internal/app\t0.327s\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:54:11.563223+10:00","Action":"fail","Package":"batz/internal/app","Elapsed":0.328}

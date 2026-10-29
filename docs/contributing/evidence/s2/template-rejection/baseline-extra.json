@@ -1,0 +1,34 @@
+{
+  "root": "/private/tmp/batz-s2-template-writer/baseline-checkout",
+  "base": "exact prepared source snapshot",
+  "command": [
+    "/private/tmp/batz-s2-template-writer/baseline-checkout/runtime/.local/go/bin/go",
+    "test",
+    "./internal/app",
+    "./internal/run",
+    "-run",
+    "^(TestPreflightEmitsStructuredDiagnostic|TestPreviewBudgetIncludesWritableSiblingPaths)$",
+    "-p",
+    "1",
+    "-count=1",
+    "-json"
+  ],
+  "exit": 1,
+  "verified_original_files": 203,
+  "failures": [
+    {
+      "Package": "batz/internal/app",
+      "Test": "TestPreflightEmitsStructuredDiagnostic"
+    },
+    {
+      "Package": "batz/internal/app"
+    },
+    {
+      "Package": "batz/internal/run",
+      "Test": "TestPreviewBudgetIncludesWritableSiblingPaths"
+    },
+    {
+      "Package": "batz/internal/run"
+    }
+  ]
+}

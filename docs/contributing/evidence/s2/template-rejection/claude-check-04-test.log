@@ -1,0 +1,18 @@
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/query_block
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/lowercase_statement_block
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/expression_delimiter
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/statement_delimiter
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/comment_delimiter
+=== RUN   TestPreviewRejectsJinjaTemplatingBeforeLaunch/yaml_config_delimiter
+--- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch (0.16s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/query_block (0.03s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/lowercase_statement_block (0.03s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/expression_delimiter (0.03s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/statement_delimiter (0.02s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/comment_delimiter (0.02s)
+    --- PASS: TestPreviewRejectsJinjaTemplatingBeforeLaunch/yaml_config_delimiter (0.02s)
+=== RUN   TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData
+--- PASS: TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData (6.00s)
+PASS
+ok  	batz/internal/app	6.486s

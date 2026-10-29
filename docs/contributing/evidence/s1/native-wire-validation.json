@@ -1,0 +1,20 @@
+[
+  {
+    "path": "/Users/martinpopolito/GitHub/batz/docs/contributing/evidence/s1/cli-run.json",
+    "schema": "run-report",
+    "sha256": "cfe9b727a6524c8677451903fd1b7bf269ad9bc9bdb98b232f02dd010c4f09cc",
+    "result": "pass"
+  },
+  {
+    "path": "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-cli-demo/.batz/normalized/716b44879d3bd7c63994ebd4d429fd1b/inventory.json",
+    "schema": "published-inventory",
+    "sha256": "4ad1a63f11c01635ff318802c238891dbdc8f4c3e8f8df7f6fb6513b6c4c9412",
+    "result": "pass"
+  },
+  {
+    "path": "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-cli-demo/.batz/parsed/7b42add27f17d0bd346ec38a0cf3b8c2/receipt.json",
+    "schema": "collection-receipt",
+    "sha256": "fd1f114ceb64d4dc3ac4460c2e332337fc32cc9fe0e15464b54b2eb8c85ad974",
+    "result": "pass"
+  }
+]

@@ -1,0 +1,6 @@
+=== RUN   TestSyntheticNanosecondProbeSurvivesNativePublication
+--- PASS: TestSyntheticNanosecondProbeSurvivesNativePublication (3.36s)
+=== RUN   TestWrongTimestampCannotReplacePublishedRevision
+--- PASS: TestWrongTimestampCannotReplacePublishedRevision (6.25s)
+PASS
+ok  	batz/internal/app	9.903s

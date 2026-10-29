@@ -1,0 +1,52 @@
+=== RUN   TestPreflightEmitsStructuredDiagnostic
+--- PASS: TestPreflightEmitsStructuredDiagnostic (0.00s)
+=== RUN   TestReceiptFailurePreservesIntegrityClassification
+--- PASS: TestReceiptFailurePreservesIntegrityClassification (0.08s)
+=== RUN   TestBusyWorkspaceStartsNoAcquisition
+--- PASS: TestBusyWorkspaceStartsNoAcquisition (0.02s)
+=== RUN   TestStaticRefusalsDoNotStartAcquisition
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/missing-workspace
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/unknown-version
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/duplicate-field
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/missing-asset
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/project-python
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/reserved-handoff
+=== RUN   TestStaticRefusalsDoNotStartAcquisition/unknown-route
+--- PASS: TestStaticRefusalsDoNotStartAcquisition (0.04s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/missing-workspace (0.00s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/unknown-version (0.00s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/duplicate-field (0.00s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/missing-asset (0.00s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/project-python (0.02s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/reserved-handoff (0.00s)
+    --- PASS: TestStaticRefusalsDoNotStartAcquisition/unknown-route (0.00s)
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/run/missing-name
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/run/invalid-name
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/run/missing-required
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/run/invalid-route-id
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/run/unknown-unselected-field
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/explain/missing-name
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/explain/invalid-name
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/explain/missing-required
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/explain/invalid-route-id
+=== RUN   TestBothCommandsValidateTheCompletePipelineSchema/explain/unknown-unselected-field
+--- PASS: TestBothCommandsValidateTheCompletePipelineSchema (0.02s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/run/missing-name (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/run/invalid-name (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/run/missing-required (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/run/invalid-route-id (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/run/unknown-unselected-field (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/explain/missing-name (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/explain/invalid-name (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/explain/missing-required (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/explain/invalid-route-id (0.00s)
+    --- PASS: TestBothCommandsValidateTheCompletePipelineSchema/explain/unknown-unselected-field (0.00s)
+=== RUN   TestWrongTimestampCannotReplacePublishedRevision
+--- PASS: TestWrongTimestampCannotReplacePublishedRevision (6.75s)
+PASS
+ok  	batz/internal/app	7.288s
+=== RUN   TestCancelledRunReportsCancellation
+--- PASS: TestCancelledRunReportsCancellation (0.00s)
+PASS
+ok  	batz/internal/run	0.607s

@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "checks": [
+    "ADR/index local links",
+    "ASCII diagram charset/width",
+    "recorded measurements match retained logs"
+  ],
+  "files": {
+    "docs/adr/README.md": "b64b8bfa97bc8afe5fffa4ed53a84d3d6ebd19a6f4b33b82986f0c76b82e2786",
+    "docs/adr/0001-test-at-the-cheapest-sufficient-layer.md": "5f8f6d5242a223c70707727c18467daf73d728c4ec1c024786e3352f253a4b87"
+  },
+  "product_source_changed": false
+}

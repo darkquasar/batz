@@ -1,0 +1,6 @@
+=== RUN   TestSignalCancellationPreservesParsedEvidenceAndReleasesOwner
+--- PASS: TestSignalCancellationPreservesParsedEvidenceAndReleasesOwner (1.98s)
+=== RUN   TestNativeBindingsRemainIndependentAcrossABA
+--- PASS: TestNativeBindingsRemainIndependentAcrossABA (9.08s)
+PASS
+ok  	batz/internal/app	11.486s

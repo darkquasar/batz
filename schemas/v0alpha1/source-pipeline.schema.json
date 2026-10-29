@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batz.invalid/schemas/v0alpha1/source-pipeline.schema.json",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "const": "batz/v0alpha1"
+    },
+    "kind": {
+      "const": "SourcePipeline"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9223372036854775807
+    },
+    "normalization": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "additionalProperties": false
+    },
+    "routes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "object",
+            "properties": {
+              "engine": {
+                "const": "bento"
+              },
+              "config": {
+                "type": "string",
+                "minLength": 1
+              },
+              "params": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+                },
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "enum": [
+                        "string",
+                        "path",
+                        "timestamp",
+                        "string-list"
+                      ]
+                    },
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "env": {
+                      "type": "string",
+                      "pattern": "^BATZ_[A-Z][A-Z0-9_]*$"
+                    },
+                    "default": {
+                      "type": [
+                        "string",
+                        "array",
+                        "null"
+                      ],
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "required",
+                    "env"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "engine",
+              "config",
+              "params"
+            ],
+            "additionalProperties": false
+          },
+          "output": {
+            "type": "object",
+            "properties": {
+              "parsed": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "const": "parquet"
+                  }
+                },
+                "required": [
+                  "format"
+                ],
+                "additionalProperties": false
+              },
+              "normalized": {
+                "type": "object",
+                "properties": {
+                  "models": {
+                    "type": "object",
+                    "minProperties": 1,
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$"
+                    },
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": [
+                  "models"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "parsed",
+              "normalized"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "input",
+          "output"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "explain": {
+      "type": "object",
+      "properties": {
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "route": {
+                "type": "string",
+                "minLength": 1
+              },
+              "input": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "expectations": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "id",
+              "route",
+              "input",
+              "sha256",
+              "expectations"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "examples"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "name",
+    "version",
+    "normalization",
+    "routes"
+  ],
+  "additionalProperties": false
+}

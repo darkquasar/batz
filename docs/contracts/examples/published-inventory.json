@@ -1,0 +1,74 @@
+{
+  "apiVersion": "batz/v0alpha1",
+  "kind": "PublishedInventory",
+  "revision": "normalized1",
+  "identity": {
+    "binding_id": "demo",
+    "run_id": "run1",
+    "batch_id": "batch1",
+    "attempt_id": "attempt1",
+    "case_id": null
+  },
+  "input_revision": "parsed1",
+  "input_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+  "inputs": [
+    {
+      "id": "1111111111111111111111111111111111111111111111111111111111111111",
+      "locator": "/synthetic/cloudtrail.json",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 100
+    }
+  ],
+  "profile": "batz-investigation/v0alpha1",
+  "content": {
+    "model": "5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "datasets": [
+    {
+      "name": "api_activity",
+      "model_id": "cloudtrail.api_activity",
+      "schema": "batz-investigation/v0alpha1",
+      "files": [
+        {
+          "path": "normalized/rev1/api_activity.parquet",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "bytes": 200,
+          "rows": 1
+        }
+      ],
+      "rows": 1
+    }
+  ],
+  "source_files": [
+    {
+      "path": "source/batch1/input.json",
+      "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": 100,
+      "rows": 0
+    }
+  ],
+  "reject_files": [],
+  "counts": [
+    {
+      "boundary": "parse",
+      "accepted": 1,
+      "rejected": 0,
+      "unsupported": 0,
+      "excluded": 0
+    },
+    {
+      "boundary": "normalize",
+      "accepted": 1,
+      "rejected": 0,
+      "unsupported": 0,
+      "excluded": 0
+    }
+  ],
+  "quality": "complete",
+  "catalog": {
+    "path": "readers/normalized1.duckdb",
+    "sha256": "6666666666666666666666666666666666666666666666666666666666666666",
+    "bytes": 300,
+    "rows": 0
+  }
+}

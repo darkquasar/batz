@@ -1,0 +1,40 @@
+{
+  "exit": 0,
+  "checks": [
+    {
+      "path": "/Users/martinpopolito/GitHub/batz/docs/contributing/evidence/s1/corrected-cli-run.json",
+      "schema": "run-report",
+      "sha256": "9333a0dc3d4e9afcfa9eb0e08f2f05b726ae641a8629b8303fc882f56e129b3f",
+      "result": "pass"
+    },
+    {
+      "path": "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-native-5pj_r65l/.batz/normalized/4b047ed0905a2c13f1f45b930f60bb16/inventory.json",
+      "schema": "published-inventory",
+      "sha256": "c7ca4a968463640c53cdf83d7537e2f496083ffee08cd7bd84e5b55e4fa4d91f",
+      "result": "pass"
+    },
+    {
+      "path": "/Users/martinpopolito/GitHub/batz/runtime/.local/s1-native-5pj_r65l/.batz/parsed/4b314ae8e6f17256fca8f79bee3f7ce9/receipt.json",
+      "schema": "collection-receipt",
+      "sha256": "3d7f9f6997edef854855bf704bc40139e635d731f06daa5242a03cc153f94919",
+      "result": "pass"
+    },
+    {
+      "path": "/Users/martinpopolito/GitHub/batz/docs/contributing/evidence/s1/corrected-cli-explain.log",
+      "schema": "explain-report",
+      "sha256": "b0c6dbccee17eae169cee9199bcd468f4f2661425f3cf612a942fb27a8f84445",
+      "result": "pass"
+    },
+    {
+      "check": "Go producer / Python consumer canonical membership digest",
+      "digest": "2eff9b30523e26e106432bb12a517c15575277b55378f00b2a2367e7c55c6e48",
+      "result": "pass"
+    }
+  ],
+  "platform": "macOS-15.6.1-arm64-arm-64bit",
+  "packages": {
+    "sqlmesh": "0.236.4",
+    "duckdb": "1.5.4",
+    "jsonschema": "4.25.1"
+  }
+}

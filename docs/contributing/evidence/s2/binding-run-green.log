@@ -1,0 +1,4 @@
+=== RUN   TestSavedBindingRunsNativePipeline
+--- PASS: TestSavedBindingRunsNativePipeline (3.49s)
+PASS
+ok  	batz/internal/app	3.794s

@@ -1,0 +1,9 @@
+?   	batz/cmd/batz	[no test files]
+?   	batz/cmd/batz-collector	[no test files]
+?   	batz/collector/plugins	[no test files]
+ok  	batz/internal/app	134.971s
+ok  	batz/internal/config	0.160s
+?   	batz/internal/contracts	[no test files]
+ok  	batz/internal/run	1.964s
+ok  	batz/internal/scratch	0.445s
+?   	batz/schemas/v0alpha1	[no test files]

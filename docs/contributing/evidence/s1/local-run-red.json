@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/Users/martinpopolito/GitHub/batz/runtime/.local/go/bin/go",
+    "test",
+    "./internal/app",
+    "-run",
+    "TestLocalFixturePublishesQueryableRevision",
+    "-count=1",
+    "-v"
+  ],
+  "exit": 1,
+  "expected": "test assertion fails because local run capability is absent, not tool/syntax failure"
+}

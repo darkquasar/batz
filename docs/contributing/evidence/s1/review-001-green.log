@@ -1,0 +1,16 @@
+=== RUN   TestExplicitEmptyNativeInputPublishesCheckedEmptyRevision
+--- PASS: TestExplicitEmptyNativeInputPublishesCheckedEmptyRevision (3.48s)
+=== RUN   TestExactObservationMembershipAndCompleteOrigins
+=== RUN   TestExactObservationMembershipAndCompleteOrigins/duplicate-and-omit
+=== RUN   TestExactObservationMembershipAndCompleteOrigins/file
+=== RUN   TestExactObservationMembershipAndCompleteOrigins/revision
+=== RUN   TestExactObservationMembershipAndCompleteOrigins/row
+--- PASS: TestExactObservationMembershipAndCompleteOrigins (26.00s)
+    --- PASS: TestExactObservationMembershipAndCompleteOrigins/duplicate-and-omit (6.75s)
+    --- PASS: TestExactObservationMembershipAndCompleteOrigins/file (6.50s)
+    --- PASS: TestExactObservationMembershipAndCompleteOrigins/revision (6.35s)
+    --- PASS: TestExactObservationMembershipAndCompleteOrigins/row (6.41s)
+=== RUN   TestLocalFixturePublishesQueryableRevision
+--- PASS: TestLocalFixturePublishesQueryableRevision (3.12s)
+PASS
+ok  	batz/internal/app	32.902s

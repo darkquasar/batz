@@ -1,0 +1,24 @@
+{"Time":"2026-10-29T16:44:30.906602+10:00","Action":"start","Package":"batz/internal/app"}
+{"Time":"2026-10-29T16:44:31.198199+10:00","Action":"run","Package":"batz/internal/app","Test":"TestTamperedCollectorRefusedBeforeWorkspaceMutation"}
+{"Time":"2026-10-29T16:44:31.198255+10:00","Action":"output","Package":"batz/internal/app","Test":"TestTamperedCollectorRefusedBeforeWorkspaceMutation","Output":"=== RUN   TestTamperedCollectorRefusedBeforeWorkspaceMutation\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.205258+10:00","Action":"output","Package":"batz/internal/app","Test":"TestTamperedCollectorRefusedBeforeWorkspaceMutation","Output":"--- PASS: TestTamperedCollectorRefusedBeforeWorkspaceMutation (0.01s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.205276+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestTamperedCollectorRefusedBeforeWorkspaceMutation","Elapsed":0.01}
+{"Time":"2026-10-29T16:44:31.205296+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure"}
+{"Time":"2026-10-29T16:44:31.205299+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure","Output":"=== RUN   TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.208089+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default"}
+{"Time":"2026-10-29T16:44:31.208093+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default","Output":"=== RUN   TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.241357+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default","Output":"--- PASS: TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.241378+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/default","Elapsed":0.03}
+{"Time":"2026-10-29T16:44:31.241421+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict"}
+{"Time":"2026-10-29T16:44:31.241424+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict","Output":"=== RUN   TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.26733+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict","Output":"--- PASS: TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.267347+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure/strict","Elapsed":0.03}
+{"Time":"2026-10-29T16:44:31.268693+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure","Output":"--- PASS: TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure (0.06s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.268696+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure","Elapsed":0.06}
+{"Time":"2026-10-29T16:44:31.268705+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewMissingRuntimeNeverDownloadsOrCreatesState"}
+{"Time":"2026-10-29T16:44:31.268708+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewMissingRuntimeNeverDownloadsOrCreatesState","Output":"=== RUN   TestPreviewMissingRuntimeNeverDownloadsOrCreatesState\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.269541+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewMissingRuntimeNeverDownloadsOrCreatesState","Output":"--- PASS: TestPreviewMissingRuntimeNeverDownloadsOrCreatesState (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.269549+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewMissingRuntimeNeverDownloadsOrCreatesState","Elapsed":0}
+{"Time":"2026-10-29T16:44:31.269552+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T16:44:31.27145+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t0.365s\n"}
+{"Time":"2026-10-29T16:44:31.27146+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":0.365}

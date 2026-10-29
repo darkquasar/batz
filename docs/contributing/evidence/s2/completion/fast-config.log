@@ -1,0 +1,40 @@
+{"Time":"2026-10-29T18:04:07.214007+10:00","Action":"start","Package":"batz/internal/config"}
+{"Time":"2026-10-29T18:04:07.47025+10:00","Action":"run","Package":"batz/internal/config","Test":"TestPathsRetainDeclaringOriginAcrossLayers"}
+{"Time":"2026-10-29T18:04:07.470524+10:00","Action":"output","Package":"batz/internal/config","Test":"TestPathsRetainDeclaringOriginAcrossLayers","Output":"=== RUN   TestPathsRetainDeclaringOriginAcrossLayers\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.471817+10:00","Action":"output","Package":"batz/internal/config","Test":"TestPathsRetainDeclaringOriginAcrossLayers","Output":"--- PASS: TestPathsRetainDeclaringOriginAcrossLayers (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.471823+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestPathsRetainDeclaringOriginAcrossLayers","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.471841+10:00","Action":"run","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector"}
+{"Time":"2026-10-29T18:04:07.471842+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Output":"=== RUN   TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.472077+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Output":"--- PASS: TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.472079+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestSoleRouteResolvesItsDefaultsWithoutAnExplicitSelector","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.472086+10:00","Action":"run","Package":"batz/internal/config","Test":"TestSixLayerPrecedenceAndAtomicCredentialReplacement"}
+{"Time":"2026-10-29T18:04:07.472088+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSixLayerPrecedenceAndAtomicCredentialReplacement","Output":"=== RUN   TestSixLayerPrecedenceAndAtomicCredentialReplacement\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.473757+10:00","Action":"output","Package":"batz/internal/config","Test":"TestSixLayerPrecedenceAndAtomicCredentialReplacement","Output":"--- PASS: TestSixLayerPrecedenceAndAtomicCredentialReplacement (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.473765+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestSixLayerPrecedenceAndAtomicCredentialReplacement","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.473768+10:00","Action":"run","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected"}
+{"Time":"2026-10-29T18:04:07.473771+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Output":"=== RUN   TestExplicitNullDeletesAndBlankIsRejected\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.475003+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Output":"--- PASS: TestExplicitNullDeletesAndBlankIsRejected (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.475008+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestExplicitNullDeletesAndBlankIsRejected","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.475019+10:00","Action":"run","Package":"batz/internal/config","Test":"TestExplicitCaseSelectsOnlyRequestedBinding"}
+{"Time":"2026-10-29T18:04:07.475021+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitCaseSelectsOnlyRequestedBinding","Output":"=== RUN   TestExplicitCaseSelectsOnlyRequestedBinding\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.476151+10:00","Action":"output","Package":"batz/internal/config","Test":"TestExplicitCaseSelectsOnlyRequestedBinding","Output":"--- PASS: TestExplicitCaseSelectsOnlyRequestedBinding (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.476158+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestExplicitCaseSelectsOnlyRequestedBinding","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.47616+10:00","Action":"run","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace"}
+{"Time":"2026-10-29T18:04:07.476161+10:00","Action":"output","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Output":"=== RUN   TestBindingDefinitionUsesItsSelectedWorkspace\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.477267+10:00","Action":"output","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Output":"--- PASS: TestBindingDefinitionUsesItsSelectedWorkspace (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.477273+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestBindingDefinitionUsesItsSelectedWorkspace","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.477275+10:00","Action":"run","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText"}
+{"Time":"2026-10-29T18:04:07.477277+10:00","Action":"output","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Output":"=== RUN   TestYAMLTimestampInputPreservesItsSuppliedText\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.478205+10:00","Action":"output","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Output":"--- PASS: TestYAMLTimestampInputPreservesItsSuppliedText (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.478209+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestYAMLTimestampInputPreservesItsSuppliedText","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.478217+10:00","Action":"run","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray"}
+{"Time":"2026-10-29T18:04:07.478219+10:00","Action":"output","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Output":"=== RUN   TestStringListRequiresAJSONArray\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.478435+10:00","Action":"output","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Output":"--- PASS: TestStringListRequiresAJSONArray (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.478438+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestStringListRequiresAJSONArray","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.47844+10:00","Action":"run","Package":"batz/internal/config","Test":"TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases"}
+{"Time":"2026-10-29T18:04:07.478441+10:00","Action":"output","Package":"batz/internal/config","Test":"TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases","Output":"=== RUN   TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.479298+10:00","Action":"output","Package":"batz/internal/config","Test":"TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases","Output":"--- PASS: TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.479302+10:00","Action":"pass","Package":"batz/internal/config","Test":"TestResolutionDoesNotSearchAncestorWorkspacesOrNearbyCases","Elapsed":0}
+{"Time":"2026-10-29T18:04:07.479304+10:00","Action":"output","Package":"batz/internal/config","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T18:04:07.479659+10:00","Action":"output","Package":"batz/internal/config","Output":"ok  \tbatz/internal/config\t0.265s\n"}
+{"Time":"2026-10-29T18:04:07.479664+10:00","Action":"pass","Package":"batz/internal/config","Elapsed":0.266}

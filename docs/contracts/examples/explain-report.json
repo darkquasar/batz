@@ -1,0 +1,22 @@
+{
+  "apiVersion": "batz/v0alpha1",
+  "kind": "ExplainReport",
+  "pipeline": "aws-cloudtrail",
+  "version": 1,
+  "level": 1,
+  "project": "repo://normalization",
+  "routes": [
+    {
+      "name": "local_raw",
+      "engine": "bento",
+      "config": "repo://collector/configs/cloudtrail/local-records.yaml",
+      "parsed_format": "parquet",
+      "models": {
+        "api_activity": "cloudtrail.api_activity"
+      },
+      "basis": "declared"
+    }
+  ],
+  "assets": {},
+  "diagnostics": []
+}

@@ -1,0 +1,192 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://batz.invalid/schemas/v0alpha1/run-report.schema.json",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "const": "batz/v0alpha1"
+    },
+    "kind": {
+      "const": "RunReport"
+    },
+    "identity": {
+      "$ref": "common.schema.json#/$defs/identity"
+    },
+    "outcome": {
+      "enum": [
+        "queued",
+        "running",
+        "acquisition-failed",
+        "parsed-committed",
+        "normalization-failed",
+        "published",
+        "cancelled",
+        "blocked",
+        "publication-failed"
+      ]
+    },
+    "acquisition_complete": {
+      "type": "boolean"
+    },
+    "quality": {
+      "anyOf": [
+        {
+          "enum": [
+            "complete",
+            "partial"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "properties": {
+        "mapped": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        },
+        "unsupported": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9223372036854775807
+        }
+      },
+      "required": [
+        "mapped",
+        "unsupported"
+      ],
+      "additionalProperties": false
+    },
+    "strict": {
+      "type": "boolean"
+    },
+    "exit": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        130
+      ]
+    },
+    "parsed_revision": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "normalized_revision": {
+      "anyOf": [
+        {
+          "$ref": "common.schema.json#/$defs/id"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "catalog": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/input"
+      }
+    },
+    "counts": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/counts"
+      }
+    },
+    "limits": {
+      "$ref": "common.schema.json#/$defs/limits"
+    },
+    "content": {
+      "$ref": "common.schema.json#/$defs/hashes"
+    },
+    "resolution": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "value": {},
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "value",
+          "source",
+          "field"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "common.schema.json#/$defs/diagnostic"
+      }
+    },
+    "resources": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "collection",
+          "model"
+        ]
+      },
+      "additionalProperties": {
+        "$ref": "common.schema.json#/$defs/resource_usage"
+      }
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "identity",
+    "outcome",
+    "acquisition_complete",
+    "quality",
+    "coverage",
+    "strict",
+    "exit",
+    "parsed_revision",
+    "normalized_revision",
+    "catalog",
+    "inputs",
+    "counts",
+    "limits",
+    "content",
+    "resolution",
+    "diagnostics",
+    "resources"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,63 @@
+**Status: DONE_WITH_CONCERNS.** Offline preview now rejects Jinja in normalization content before it creates scratch or starts the native runtime. The concerns are two failing tests that the brief excluded from scope, and that I couldn't generate the patch with `git diff`.
+
+Root: `/private/tmp/batz-s2-template-writer/checkout`, base `70ada14b1d4c245fef8893e4ecca9b20c47b6cfd` (detached). The baseline check passed before my first write. Nothing was staged, committed or pushed, as the brief requires.
+
+## What changed
+- **`internal/app/preview.go`**: `admitProject` now reads `.sql`, `.yaml` and `.yml` files and refuses any that contain `{{`, `{%`, `{#`, `JINJA_QUERY_BEGIN`, `JINJA_STATEMENT_BEGIN` or `JINJA_END`, in any letter case.
+  - YAML is checked too, because SQLMesh renders Jinja in its config files.
+  - `.csv` files are not checked, since seed rows are data and SQLMesh doesn't render them.
+  - Symlinks and other file extensions are still refused as before.
+  - The diagnostic is `unsupported Jinja templating in normalization content: <relative path>`. It names the file but never shows its content.
+  - Native `@` macros and DuckDB struct literals like `{'k':...}` still pass.
+- **`internal/app/preview_review_test.go`**: I replaced the old test, whose fixture could actually run code, with harmless fixtures (`40 + 2`, simple `set` assignments, a comment, a templated boolean in config.yaml).
+  - `TestPreviewRejectsJinjaTemplatingBeforeLaunch` has six cases, three run with `--strict` and three without. Each checks:
+    - exit 0 by default, 3 with `--strict`
+    - no `runtime.run` and no `runtime.scratch`
+    - exactly one diagnostic, with the expected category and code, a message saying "unsupported Jinja templating", and the file path
+    - the fixture text never appears in the output
+  - A missing native runtime also gives exit 3 with no run, but with a different message, so it can't make these tests pass by accident.
+  - `TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData` is the success control. It adds `@DEF(mapped_status, 'mapped')` and `@mapped_status` to the existing model, plus a CSV containing `{{ 40 + 2 }}`. It expects `--strict` exit 0, a real run and samples, which also proves the native runtime is present.
+- **`docs/usage/explain.md`**: a short paragraph on what is accepted and rejected. It says markers are rejected even inside SQL strings and comments, and that the scan is not a sandbox.
+
+```
+  +-------------+  level 3  +----------------+   ok    +----------------+
+  | explain     | ========> | preview()      | ======> | admitProject() |
+  +-------------+           | runtime/native/|         | ext + symlink +|
+        ^                   | example checks |         | Jinja scan     |
+        |                   +----------------+         +----------------+
+        | code 3 => preview-failed diagnostic             | reject   | admit
+        | (default exit 0, --strict exit 3)               v          v
+        +-------------------------------------------- error   +----------------+
+                                                              | MkdirTemp =>   |
+                                                              | native Execute |
+                                                              +----------------+
+```
+
+## Checks
+Evidence files are under `/private/tmp/batz-s2-template-writer/`.
+
+| # | Check | Exit | Evidence |
+|---|---|---|---|
+| 1 | gofmt on the test file | 0 | check-01-gofmt.json |
+| 2 | **RED**: the two focused tests, run before changing `preview.go` | 1 | check-02-test.{json,log} |
+| 3 | gofmt on both Go files | 0 | check-03-gofmt.json |
+| 4 | **GREEN**: same focused tests | 0 | check-04-test.{json,log} |
+| 5 | Regressions: `-run 'Preview\|Explain\|Explicit\|WrongReviewed\|Inspection'` | 1 | check-05-test.{json,log} |
+| 6, 7 | `vet ./internal/app` (7 records the final file hashes) | 0 | check-06/07-vet.json |
+
+- **RED:** all six rejection cases failed because the templated content reached the runtime. Each created scratch, launched the native model runner, and ended with `normalization-failed`. The control passed. This was a genuine behavior failure, not a setup or runtime-integrity problem.
+- **GREEN:** all six pass in about 0.02–0.03s each, with nothing launched. The control passes with a full native preview.
+- **Regressions:** all other preview/explain tests pass. Two fail, both on the brief's exclusion list:
+  - `TestInspectionOperationalFailureIsNotIntegrityFailure` got exit 4 instead of 1 (inspection exit classification).
+  - `TestExplainUsesContextSelectedNormalizationProject` got exit 0 instead of 4 (context-selected normalization).
+
+  Neither involves templating: both get through the new check and complete a native run. I didn't re-run them against the original `preview.go`, since that would mean reverting my changes.
+
+## Concerns and limitations
+- **Patch built by hand:** two shell commands outside `checks.py` were automatically denied, since this session can't answer approval prompts. They were a compound command containing `echo` and a `git diff --no-index`. So I assembled the patch in `report.md` by hand from the final files and the originals in `original/`. I didn't re-run `checks.py baseline` after editing, because my files are now meant to differ from the prepared hashes.
+- **Conservative text scan:** it rejects legitimate text such as `LIKE '{%'` or `{{` in a YAML comment, rather than adding a parser. Unicode upper-casing can only cause extra rejections, never let a marker through.
+- **Not a sandbox:** the scan is an admission rule; filesystem and network isolation remain the real boundary.
+- **Not addressed:** there is no size cap on the extra file read, and a file could still change between this check and the later copy. That window existed before my change. Both are left out of scope.
+- **Follow-ups:** there is no tracker in this allocation, so the two excluded failures above are the open follow-ups.
+
+The full report, including the complete patch, is in `/private/tmp/batz-s2-template-writer/report.md`. No background jobs are left running.

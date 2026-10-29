@@ -1,0 +1,79 @@
+{"Time":"2026-10-29T15:46:31.484657+10:00","Action":"start","Package":"batz/internal/run"}
+{"Time":"2026-10-29T15:46:32.034126+10:00","Action":"run","Package":"batz/internal/run","Test":"TestCancelledRunReportsCancellation"}
+{"Time":"2026-10-29T15:46:32.034197+10:00","Action":"output","Package":"batz/internal/run","Test":"TestCancelledRunReportsCancellation","Output":"=== RUN   TestCancelledRunReportsCancellation\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.038499+10:00","Action":"output","Package":"batz/internal/run","Test":"TestCancelledRunReportsCancellation","Output":"--- PASS: TestCancelledRunReportsCancellation (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.038522+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestCancelledRunReportsCancellation","Elapsed":0}
+{"Time":"2026-10-29T15:46:32.03853+10:00","Action":"run","Package":"batz/internal/run","Test":"TestPreviewBudgetIncludesWritableSiblingPaths"}
+{"Time":"2026-10-29T15:46:32.038533+10:00","Action":"output","Package":"batz/internal/run","Test":"TestPreviewBudgetIncludesWritableSiblingPaths","Output":"=== RUN   TestPreviewBudgetIncludesWritableSiblingPaths\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.30876+10:00","Action":"output","Package":"batz/internal/run","Test":"TestPreviewBudgetIncludesWritableSiblingPaths","Output":"    preview_budget_test.go:52: sibling writer stopped at 81920 bytes; observed 81925 bytes\n"}
+{"Time":"2026-10-29T15:46:32.309172+10:00","Action":"output","Package":"batz/internal/run","Test":"TestPreviewBudgetIncludesWritableSiblingPaths","Output":"--- PASS: TestPreviewBudgetIncludesWritableSiblingPaths (0.27s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.309178+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestPreviewBudgetIncludesWritableSiblingPaths","Elapsed":0.27}
+{"Time":"2026-10-29T15:46:32.309198+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord"}
+{"Time":"2026-10-29T15:46:32.309202+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.309216+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key"}
+{"Time":"2026-10-29T15:46:32.309224+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.777372+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key (0.47s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.77739+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-key","Elapsed":0.47}
+{"Time":"2026-10-29T15:46:32.777395+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/trailing-document"}
+{"Time":"2026-10-29T15:46:32.777396+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/trailing-document","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/trailing-document\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.81705+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/trailing-document","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/trailing-document (0.04s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.817067+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/trailing-document","Elapsed":0.04}
+{"Time":"2026-10-29T15:46:32.817085+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal"}
+{"Time":"2026-10-29T15:46:32.817087+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.858706+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal (0.04s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.858722+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/duplicate-ordinal","Elapsed":0.04}
+{"Time":"2026-10-29T15:46:32.858725+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation"}
+{"Time":"2026-10-29T15:46:32.858733+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.910769+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation (0.05s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.910782+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-observation","Elapsed":0.05}
+{"Time":"2026-10-29T15:46:32.910785+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/omitted-record"}
+{"Time":"2026-10-29T15:46:32.910786+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/omitted-record","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/omitted-record\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.955168+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/omitted-record","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/omitted-record (0.04s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.955185+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/omitted-record","Elapsed":0.04}
+{"Time":"2026-10-29T15:46:32.955189+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet"}
+{"Time":"2026-10-29T15:46:32.955198+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.98378+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:32.983794+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/invalid-parquet","Elapsed":0.03}
+{"Time":"2026-10-29T15:46:32.983798+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt"}
+{"Time":"2026-10-29T15:46:32.983799+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.008043+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt (0.02s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.008056+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/wrong-attempt","Elapsed":0.02}
+{"Time":"2026-10-29T15:46:33.00806+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/escaping-path"}
+{"Time":"2026-10-29T15:46:33.008062+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/escaping-path","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/escaping-path\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.032541+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/escaping-path","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/escaping-path (0.02s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.032558+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/escaping-path","Elapsed":0.02}
+{"Time":"2026-10-29T15:46:33.032564+10:00","Action":"run","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt"}
+{"Time":"2026-10-29T15:46:33.032566+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt","Output":"=== RUN   TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.057812+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt (0.03s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.057827+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord/missing-receipt","Elapsed":0.03}
+{"Time":"2026-10-29T15:46:33.057831+10:00","Action":"output","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord","Output":"--- PASS: TestReceiptMustDescribeEveryActualSourceRecord (0.75s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.057837+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestReceiptMustDescribeEveryActualSourceRecord","Elapsed":0.75}
+{"Time":"2026-10-29T15:46:33.057846+10:00","Action":"run","Package":"batz/internal/run","Test":"TestResourceProcessHelper"}
+{"Time":"2026-10-29T15:46:33.057863+10:00","Action":"output","Package":"batz/internal/run","Test":"TestResourceProcessHelper","Output":"=== RUN   TestResourceProcessHelper\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.057874+10:00","Action":"output","Package":"batz/internal/run","Test":"TestResourceProcessHelper","Output":"--- PASS: TestResourceProcessHelper (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.057875+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestResourceProcessHelper","Elapsed":0}
+{"Time":"2026-10-29T15:46:33.057877+10:00","Action":"run","Package":"batz/internal/run","Test":"TestRAMMeasurementIncludesDescendantsWithoutCutoff"}
+{"Time":"2026-10-29T15:46:33.057882+10:00","Action":"output","Package":"batz/internal/run","Test":"TestRAMMeasurementIncludesDescendantsWithoutCutoff","Output":"=== RUN   TestRAMMeasurementIncludesDescendantsWithoutCutoff\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.784074+10:00","Action":"output","Package":"batz/internal/run","Test":"TestRAMMeasurementIncludesDescendantsWithoutCutoff","Output":"    resources_test.go:89: tree RSS samples=7 average=124796928 peak=145129472\n"}
+{"Time":"2026-10-29T15:46:33.784948+10:00","Action":"output","Package":"batz/internal/run","Test":"TestRAMMeasurementIncludesDescendantsWithoutCutoff","Output":"--- PASS: TestRAMMeasurementIncludesDescendantsWithoutCutoff (0.73s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:33.784953+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestRAMMeasurementIncludesDescendantsWithoutCutoff","Elapsed":0.73}
+{"Time":"2026-10-29T15:46:33.78496+10:00","Action":"run","Package":"batz/internal/run","Test":"TestScratchWatchdogStopsAndSettlesActualDescendants"}
+{"Time":"2026-10-29T15:46:33.784962+10:00","Action":"output","Package":"batz/internal/run","Test":"TestScratchWatchdogStopsAndSettlesActualDescendants","Output":"=== RUN   TestScratchWatchdogStopsAndSettlesActualDescendants\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.077037+10:00","Action":"output","Package":"batz/internal/run","Test":"TestScratchWatchdogStopsAndSettlesActualDescendants","Output":"    resources_test.go:128: writer stopped at 90112 bytes for 65536-byte threshold\n"}
+{"Time":"2026-10-29T15:46:34.077466+10:00","Action":"output","Package":"batz/internal/run","Test":"TestScratchWatchdogStopsAndSettlesActualDescendants","Output":"--- PASS: TestScratchWatchdogStopsAndSettlesActualDescendants (0.29s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.077475+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestScratchWatchdogStopsAndSettlesActualDescendants","Elapsed":0.29}
+{"Time":"2026-10-29T15:46:34.077497+10:00","Action":"run","Package":"batz/internal/run","Test":"TestChildDeadlineRemainsOperationalFailure"}
+{"Time":"2026-10-29T15:46:34.077499+10:00","Action":"output","Package":"batz/internal/run","Test":"TestChildDeadlineRemainsOperationalFailure","Output":"=== RUN   TestChildDeadlineRemainsOperationalFailure\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.23065+10:00","Action":"output","Package":"batz/internal/run","Test":"TestChildDeadlineRemainsOperationalFailure","Output":"--- PASS: TestChildDeadlineRemainsOperationalFailure (0.15s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.23067+10:00","Action":"pass","Package":"batz/internal/run","Test":"TestChildDeadlineRemainsOperationalFailure","Elapsed":0.15}
+{"Time":"2026-10-29T15:46:34.230679+10:00","Action":"output","Package":"batz/internal/run","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.23154+10:00","Action":"output","Package":"batz/internal/run","Output":"ok  \tbatz/internal/run\t2.747s\n"}
+{"Time":"2026-10-29T15:46:34.231549+10:00","Action":"pass","Package":"batz/internal/run","Elapsed":2.747}
+{"Time":"2026-10-29T15:46:34.301131+10:00","Action":"start","Package":"batz/internal/scratch"}
+{"Time":"2026-10-29T15:46:34.54279+10:00","Action":"run","Package":"batz/internal/scratch","Test":"TestNativeSandboxDeniesOutsideDataAndNetwork"}
+{"Time":"2026-10-29T15:46:34.542897+10:00","Action":"output","Package":"batz/internal/scratch","Test":"TestNativeSandboxDeniesOutsideDataAndNetwork","Output":"=== RUN   TestNativeSandboxDeniesOutsideDataAndNetwork\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.653059+10:00","Action":"output","Package":"batz/internal/scratch","Test":"TestNativeSandboxDeniesOutsideDataAndNetwork","Output":"--- PASS: TestNativeSandboxDeniesOutsideDataAndNetwork (0.11s)\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.653092+10:00","Action":"pass","Package":"batz/internal/scratch","Test":"TestNativeSandboxDeniesOutsideDataAndNetwork","Elapsed":0.11}
+{"Time":"2026-10-29T15:46:34.653104+10:00","Action":"output","Package":"batz/internal/scratch","Output":"PASS\n","OutputType":"frame"}
+{"Time":"2026-10-29T15:46:34.653373+10:00","Action":"output","Package":"batz/internal/scratch","Output":"ok  \tbatz/internal/scratch\t0.352s\n"}
+{"Time":"2026-10-29T15:46:34.6534+10:00","Action":"pass","Package":"batz/internal/scratch","Elapsed":0.352}
