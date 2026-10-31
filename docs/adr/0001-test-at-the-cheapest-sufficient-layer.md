@@ -1,86 +1,100 @@
-# ADR-001: Test at the cheapest layer that proves the behavior
+# ADR-001: Keep the test surface small and compositional
 
-Status: Accepted, 2026-10-29. Scope: Batz development and review.
+Status: Accepted 2026-10-29; amended 2026-10-30 by owner direction.
+Scope: Batz application, pipeline development and CI.
+This dated amendment extends the original cheapest-sufficient-layer decision;
+it replaces the blanket testing strategy with explicit ownership/selection rules.
+The prior accepted text remains in Git history; the shared precision promise stays.
 
 ## Context
 
-During Slice 2, repeated Bento/SQLMesh/DuckDB startup dominated test time.
-Ordinary preview fixtures already contained one record; reducing their size
-would not remove that startup cost. Several validation cases and report
-assertions were unnecessarily starting their own complete pipelines.
-
-JSON validation can use invented data. Claims about actual native values,
-structures, precision, lineage and isolation require real execution. These are
-different proof obligations and should have different test costs.
+Repeated Bento/SQLMesh/DuckDB startup dominates test time even with one-record
+fixtures. Copying application lifecycle tests for every pipeline, or running the
+whole stack for each field/report nuance, makes growth unaffordable. A passing
+full pipeline is useful wiring evidence; it is an expensive default test layer.
+This amendment retains the original cheapest-sufficient-layer decision and makes
+ownership, selection and parallel execution explicit.
 
 ## Decision
 
-Choose the least expensive test layer that can establish the required behavior:
+**Prove each shared guarantee once at its cheapest sufficient interface. New
+pipelines add distinct mapping/adapter evidence and representative E2E coverage;
+they do not duplicate the application test suite.**
 
-| Behavior | Test layer |
+| Behavior | Sufficient proof |
 | --- | --- |
-| Parsing, expectation validation, precedence, types and path resolution | Direct module calls with small invented inputs |
-| CLI selection, diagnostics and report contracts | Public CLI interface in process; assert that native execution does not start where appropriate |
-| Actual engine values, structures, precision and adapter integration | A small real native journey with compatible assertions grouped together |
-| Publication, retries, ownership, cancellation and filesystem/network isolation | Real lifecycle or operating-system tests with the independent state the requirement needs |
-| Scaling behavior | Explicit workload measurements for the relevant feature; separate from ordinary correctness cases |
+| Parsing/selection, diagnostics, types, counts, quality and strictness decisions | Direct calls with tiny invented inputs |
+| Durable commits, inventory, CAS, idempotency, recovery and status | Real filesystem/Parquet and SQLite through production helpers |
+| Ownership, interruption, cancellation and isolation | Small real processes/OS checks at deterministic critical transitions |
+| Source framing/decoding and retained payload fidelity | Actual adapter/collector through parsed evidence |
+| Pipeline mapping semantics, rejects and unsupported coverage | Batched native SQLMesh model tests with reviewed fixtures |
+| Engine-native types and timestamp precision | Explicit native SQL/reader probes grouped with existing execution |
+| Application wiring and model-only recovery | One representative real shared journey |
+| Pipeline E2E | Named route/fixture through collector, SQLMesh, publication and reader query |
 
 ```text
-+---------------+  direct call  +-------------------+
-| Invented JSON | ============> | Validation module |
-+---------------+               +-------------------+
-
-+---------------+  real execution  +--------------------+
-| Small fixture | ===============> | Native integration |
-+---------------+                  +--------------------+
++------------------+  reuse proof  +---------------------+
+| Shared contracts | ============> | Pipeline checks     |
++------------------+              +---------------------+
+                                            |
+                                            | add distinct evidence
+                                            v
+                                  +---------------------+
+                                  | Models/adapter/E2E  |
+                                  +---------------------+
 ```
 
-1. Test the same module interface used by production. Keep validation callable
-   without launching an engine. Retain end-to-end tests that prove the wiring
-   and error classification across those interfaces.
-2. Reuse a real result for compatible assertions within one journey. Check its
-   values, structures, provenance and contract together. Do not create another
-   pipeline merely to inspect another field of the same result.
-3. Keep fresh runs when freshness is the assertion. Repeatability still needs
-   two independent runs. Independent failure/publication cases retain isolated
-   state. Avoid process-global mutable fixtures, test-order dependencies and
-   shared mutable workspace caches.
-4. Use the smallest fixture that distinguishes the behavior. Keep two distinct
-   records when duplicate/omitted membership cannot be proved with one. Resource
-   and concurrency tests retain the real activity needed to exercise their limits.
-5. Avoid blanket Cartesian products of features, sources and platforms. Add
-   combinations when an accepted requirement or concrete interaction risk needs
-   them; preserve required adapter/platform qualification.
-6. Use focused checks during development and the composed suite at completion.
-   Follow the existing TDD and verification requirements. This ADR does not waive
-   acceptance checks, native evidence, isolation or reviewed expectations.
-7. Measure significant test-cost growth. Record workload, pipeline launches,
-   fixture volume, timings and retained assertions. Do not infer app-wide
-   complexity or future suite duration from a small timing sample.
+1. Test through interfaces used by production. Use real storage/processes where
+   durability or ownership is the claim. Invented evidence does not prove native
+   values, transport support, engine compatibility or sandbox enforcement.
+2. Group compatible assertions in one result/journey. Keep separate fresh runs
+   only when freshness, repeatability or isolation is what they prove. Most
+   fixtures need one or two distinguishing records; large acceptance examples
+   run once at the sufficient layer, not once per pipeline or flag combination.
+3. A pipeline E2E proves its named route and fixture, not all source variants.
+   Transport-only routes reuse mapping proof and test actual acquisition/fidelity
+   separately. A different execution graph adds representative integration proof.
+   Preserve specifically promised real transport/platform qualification, including
+   local/R2 normalized parity. Avoid blanket feature/pipeline/route/platform products.
+4. Use native SQLMesh tests for mapping breadth, not a new test framework or fake
+   engine. Default DataFrame equality may hide dtype/time conversion loss: preserve
+   explicit native `typeof`/`epoch_ns` probes. One shared precision probe is enough
+   unless source interpretation differs; preserving precision is not clock accuracy.
+5. Local development and CI call the same commands, fixtures and assertions. CI
+   selects/distributes jobs; it does not own another suite. Pipeline-A-only changes
+   run fast app contracts and A's tests, without starting B. Shared changes broaden
+   affected contracts and representative compatibility checks, not automatically
+   every pipeline E2E. Release/scheduled qualification composes the wider catalog.
+6. Run independent selected jobs concurrently with isolated workspaces/state and
+   a resource cap per runner. Avoid nested oversubscription, global fixture edits,
+   order dependencies and mutable shared SQLMesh state. Batch model cases to
+   amortize startup. Requested lanes fail on missing tools; tagged code is still
+   compiled/vetted. No silent skip is qualification.
+7. Replace expensive duplicates after replacement evidence is green. Explicitly
+   record any retired promise in the existing plan/handoff. Keep data preservation,
+   exact accounting, publication isolation, child ownership/cancellation and privacy
+   checks. Do not add a registry, fixture-cache service, generic crash framework,
+   per-test review ceremony or a separate coverage ledger.
+8. Measure real cost when it grows: fixed before/after workload, native starts,
+   total work and wall time. Do not hide unchanged local work in a slow lane or
+   claim success from cached test results. Apply the owner-approved S3.1 budgets
+   in the spec/plan; report setup/cold builds separately. A miss requires concrete
+   simplification or an explicit owner decision, not silently dropping safety proof.
 
-## Evidence and consequences
+Before adding a test, identify the new failure it catches, the cheapest sufficient
+layer, and whether an existing fixture/journey can carry the assertion. These are
+review questions, not a new approval process or mandatory per-test paperwork.
 
-The initial application of this decision produced these observations on the
-same native macOS setup:
+## Consequences and evidence
 
-| Selected checks | Before | After |
-| --- | --- | --- |
-| Preview/report/expectation group | 7 fresh pipelines, 28.16 s | 3 fresh pipelines, 11.57 s |
-| Expectation validation, included in that group | 3 fresh pipelines, 12.84 s | 8 cases in one Python process, 0.04 s |
+Application contracts stay bounded as pipeline count grows; mapping evidence grows
+with distinct semantics, and costly journeys grow with justified integration risks.
+Pipeline SQL owns vendor semantics; Batz owns common evidence/publication integrity.
+SQLMesh owns model lifecycle and its native testing facilities.
 
-Native structure/value assertions still execute the real stack. The two
-repeatability runs remain independent. The full suite retained lifecycle and
-failure-isolation coverage and passed with the additional review regressions.
-These are individual observations, not performance guarantees or proof that the
-application has no quadratic algorithms.
-
-New validation cases should normally add inexpensive checks instead of engine
-startups. Native test time should grow with justified independent journeys,
-rather than with every assertion or an automatic cross-product of dimensions.
-Reviewers should check the chosen layer, fixture size, repeated setup and state
-isolation when tests are added.
-
-See [development and completion commands](../contributing/local-setup.md),
-[the before measurement](../contributing/evidence/s2/completion/test-cost-before.json),
-[the after measurement](../contributing/evidence/s2/completion/test-cost-after.json),
-and [composed verification](../contributing/evidence/s2/completion/final-check-results.json).
+Earlier selected checks fell from seven native runs/28.16 s to three/11.57 s;
+eight expectation checks used one Python process/0.04 s. Those observations
+support startup reduction, not a universal latency or production-scale promise.
+Current execution evidence and cost measurements live in the existing
+[pipeline handoff](../../../specs/batz/01-dfir-log-pipeline/archive/spec-authoring-handoff-2026-10-31.md).
+CI activation remains a separate qualification from the local commands.

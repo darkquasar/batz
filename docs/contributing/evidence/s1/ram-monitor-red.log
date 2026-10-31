@@ -1,6 +1,0 @@
-=== RUN   TestRunReportsRAMMeasurementsWithoutMemoryCutoff
-    native_test.go:200: owner removed RAM cutoffs, but report still declares them
---- FAIL: TestRunReportsRAMMeasurementsWithoutMemoryCutoff (3.61s)
-FAIL
-FAIL	batz/internal/app	4.021s
-FAIL

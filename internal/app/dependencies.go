@@ -19,6 +19,10 @@ func (e *runtimeIntegrityError) Error() string { return e.cause.Error() }
 func (e *runtimeIntegrityError) Unwrap() error { return e.cause }
 
 func verifyRuntime(root string) error {
+	return verifyRuntimeArtifacts(root, "collector", "python")
+}
+
+func verifyRuntimeArtifacts(root string, names ...string) error {
 	data, err := os.ReadFile(filepath.Join(root, "runtime/dependencies.lock.json"))
 	if err != nil {
 		return fmt.Errorf("missing runtime lock: %w", err)
@@ -34,7 +38,7 @@ func verifyRuntime(root string) error {
 		return &runtimeIntegrityError{cause: errors.New("unsupported runtime lock")}
 	}
 	target := runtime.GOOS + "/" + runtime.GOARCH
-	for _, name := range []string{"collector", "python"} {
+	for _, name := range names {
 		artifact, ok := lock.Binaries[target][name]
 		if !ok {
 			return fmt.Errorf("%s has no verified installation for %s", name, target)

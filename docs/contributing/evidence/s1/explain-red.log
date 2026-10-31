@@ -1,6 +1,0 @@
-=== RUN   TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime
-    explain_test.go:29: bare explain must show known declarations without installed assets or workspace: exit=2 usage: batz run <pipeline.yaml> --workspace PATH --route ROUTE --input path=FILE
---- FAIL: TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime (0.00s)
-FAIL
-FAIL	batz/internal/app	0.415s
-FAIL

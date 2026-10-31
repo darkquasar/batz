@@ -6,35 +6,47 @@ import (
 	"encoding/json"
 	"github.com/parquet-go/parquet-go"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
 
-func nativeReceipt(t *testing.T) (string, plugins.Request) {
+func receiptFixture(t *testing.T) (string, plugins.Request) {
 	t.Helper()
 	stage, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
 	source := []byte(`{"Records":[{"eventID":"one"},{"eventID":"two"}]}`)
 	input := contracts.InputRef{ID: hash([]byte("input")), Locator: "synthetic://receipt-test", SHA256: hash(source), Bytes: int64(len(source))}
-	request := plugins.Request{Identity: contracts.Identity{Binding: "demo", Run: "run", Batch: "batch", Attempt: "attempt"}, Input: input, Stage: stage, Source: filepath.Join(stage, "input.json"), AcquiredAt: time.Now().UTC().Format(time.RFC3339Nano), Limits: Limits()}
+	request := plugins.Request{Framing: "records-json", Identity: contracts.Identity{Binding: "demo", Run: "run", Batch: "batch", Attempt: "attempt"}, Input: input, Stage: stage, Source: filepath.Join(stage, "input.json"), AcquiredAt: time.Now().UTC().Format(time.RFC3339Nano), Limits: Limits()}
 	if err = os.WriteFile(request.Source, source, 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err = os.WriteFile(filepath.Join(stage, "request.json"), encode(request), 0600); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(filepath.Join(root, "runtime/.local/batz-collector"), filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml"), filepath.Join(stage, "request.json"))
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("real collector: %v %s", err, out)
+	rows := []plugins.Record{}
+	for ordinal, payload := range []string{`{"eventID":"one"}`, `{"eventID":"two"}`} {
+		observation := hash(encode([]any{request.Identity.Binding, request.Identity.Batch, request.Input.ID, int64(ordinal)}))
+		rows = append(rows, plugins.Record{ObservationID: observation, BindingID: string(request.Identity.Binding), RunID: string(request.Identity.Run), BatchID: string(request.Identity.Batch), AttemptID: string(request.Identity.Attempt), InputID: request.Input.ID, InputLocator: request.Input.Locator, InputSHA256: request.Input.SHA256, Ordinal: int64(ordinal), AcquiredAt: request.AcquiredAt, Representation: "reconstructed-json", Payload: payload, ParseStatus: "accepted"})
+	}
+	path := filepath.Join(stage, "parsed.parquet")
+	if err := parquet.WriteFile(path, rows); err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := fileRef(stage, path, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sourceRef, err := fileRef(stage, request.Source, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	receipt := contracts.CollectionReceipt{APIVersion: contracts.APIVersion, Kind: "CollectionReceipt", Identity: request.Identity, Inputs: []contracts.InputRef{input}, SourceFiles: []contracts.FileRef{sourceRef}, ParsedFiles: []contracts.FileRef{parsed}, RejectFiles: []contracts.FileRef{}, Counts: contracts.Counts{Boundary: "parse", Accepted: 2}, Complete: true}
+	if err := writeJSON(filepath.Join(stage, "receipt.json"), receipt); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := verifyReceipt(stage, request); err != nil {
 		t.Fatalf("native control: %v", err)
@@ -44,7 +56,7 @@ func nativeReceipt(t *testing.T) (string, plugins.Request) {
 func TestReceiptMustDescribeEveryActualSourceRecord(t *testing.T) {
 	for _, mutation := range []string{"duplicate-key", "trailing-document", "duplicate-ordinal", "wrong-observation", "omitted-record", "invalid-parquet", "wrong-attempt", "escaping-path", "missing-receipt"} {
 		t.Run(mutation, func(t *testing.T) {
-			stage, request := nativeReceipt(t)
+			stage, request := receiptFixture(t)
 			path := filepath.Join(stage, "receipt.json")
 			b, err := os.ReadFile(path)
 			if err != nil {

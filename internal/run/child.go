@@ -264,7 +264,9 @@ func sandboxedChild(privateRoot, profile string, ctx context.Context, lease *os.
 }
 
 // InspectPrivate runs a Batz-owned inspector with the same process settlement and
-// resource supervision as collection/modeling. All writes remain kernel-confined.
+// resource supervision as collection/modeling. A nonempty profile additionally
+// confines descendant writes with the macOS kernel sandbox. Discovery uses an
+// empty profile after content admission; its writes are not kernel-confined.
 func InspectPrivate(ctx context.Context, root, profile, python, script, request string) (contracts.ResourceUsage, error) {
 	lease, err := os.OpenFile(filepath.Join(root, "inspection.lease"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
 	if err != nil {

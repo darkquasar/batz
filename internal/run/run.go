@@ -14,13 +14,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strings"
 	"syscall"
-	"time"
 
 	"batz/collector/plugins"
 	"batz/internal/contracts"
@@ -29,11 +26,22 @@ import (
 )
 
 type Request struct {
-	PrivateScratch                                                             string
-	CaseID                                                                     string
-	Root, Workspace, Definition, Route, Source, Binding, NativeConfig, Project string
-	SandboxProfile                                                             string
-	Strict                                                                     bool
+	Contract       contracts.ExecutionContract      `json:"contract"`
+	PrivateScratch string                           `json:"private_scratch"`
+	CaseID         string                           `json:"case_id"`
+	Root           string                           `json:"root"`
+	Workspace      string                           `json:"workspace"`
+	Definition     string                           `json:"definition"`
+	Route          string                           `json:"route"`
+	Source         string                           `json:"source"`
+	Binding        string                           `json:"binding"`
+	NativeConfig   string                           `json:"native_config"`
+	Project        string                           `json:"project"`
+	SandboxProfile string                           `json:"sandbox_profile"`
+	Strict         bool                             `json:"strict"`
+	Retry          bool                             `json:"retry"`
+	RetryRun       contracts.RunID                  `json:"retry_run_id,omitempty"`
+	Resolution     map[string]contracts.ValueOrigin `json:"resolution,omitempty"`
 }
 type Failure struct {
 	Code                              int
@@ -201,13 +209,11 @@ func verifyReceipt(stage string, expected plugins.Request) (verifiedReceipt, err
 	if hash(sourceBytes) != expected.Input.SHA256 {
 		return verifiedReceipt{}, fmt.Errorf("source snapshot changed")
 	}
-	var source struct {
-		Records []json.RawMessage `json:"Records"`
+	records, err := plugins.SourceRecords(sourceBytes, expected.Framing)
+	if err != nil {
+		return verifiedReceipt{}, err
 	}
-	if err = json.Unmarshal(sourceBytes, &source); err != nil || source.Records == nil {
-		return verifiedReceipt{}, fmt.Errorf("invalid source shape")
-	}
-	if int64(len(source.Records)) != receipt.Counts.Accepted+receipt.Counts.Rejected {
+	if int64(len(records)) != receipt.Counts.Accepted+receipt.Counts.Rejected {
 		return verifiedReceipt{}, fmt.Errorf("source accounting mismatch")
 	}
 	ordinals := map[int64]bool{}
@@ -247,7 +253,7 @@ func verifyReceipt(stage string, expected plugins.Request) (verifiedReceipt, err
 				return verifiedReceipt{}, errors.New("parquet row count mismatch")
 			}
 			for _, row := range rows {
-				if row.BindingID != string(expected.Identity.Binding) || row.RunID != string(expected.Identity.Run) || row.BatchID != string(expected.Identity.Batch) || row.AttemptID != string(expected.Identity.Attempt) || row.InputID != expected.Input.ID || row.InputSHA256 != expected.Input.SHA256 || row.Ordinal < 0 || row.Ordinal >= int64(len(source.Records)) || ordinals[row.Ordinal] {
+				if row.BindingID != string(expected.Identity.Binding) || row.RunID != string(expected.Identity.Run) || row.BatchID != string(expected.Identity.Batch) || row.AttemptID != string(expected.Identity.Attempt) || row.InputID != expected.Input.ID || row.InputSHA256 != expected.Input.SHA256 || row.Ordinal < 0 || row.Ordinal >= int64(len(records)) || ordinals[row.Ordinal] {
 					return verifiedReceipt{}, fmt.Errorf("per-record provenance mismatch")
 				}
 				ordinals[row.Ordinal] = true
@@ -259,7 +265,7 @@ func verifyReceipt(stage string, expected plugins.Request) (verifiedReceipt, err
 				if row.ObservationID != expectedID || row.InputLocator != expected.Input.Locator || row.AcquiredAt != expected.AcquiredAt || row.Representation != "reconstructed-json" || row.ParseStatus != status || (kind == 0 && row.RejectReason != "") || (kind == 1 && row.RejectReason == "") {
 					return verifiedReceipt{}, fmt.Errorf("record identity/status mismatch")
 				}
-				src := json.NewDecoder(bytes.NewReader(source.Records[row.Ordinal]))
+				src := json.NewDecoder(bytes.NewReader(records[row.Ordinal]))
 				src.UseNumber()
 				retained := json.NewDecoder(strings.NewReader(row.Payload))
 				retained.UseNumber()
@@ -287,102 +293,6 @@ func verifyReceipt(stage string, expected plugins.Request) (verifiedReceipt, err
 	}
 	return verifiedReceipt{receipt, stage}, nil
 }
-func openState(root string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", filepath.Join(root, "state.sqlite"))
-	if err != nil {
-		return nil, err
-	}
-	db.SetMaxOpenConns(1)
-	var version int
-	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
-		db.Close()
-		return nil, err
-	}
-	if version != 0 && version != 1 {
-		db.Close()
-		return nil, fmt.Errorf("unsupported metadata version %d", version)
-	}
-	_, err = db.Exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=1000; CREATE TABLE IF NOT EXISTS bindings(id TEXT PRIMARY KEY,selection TEXT NOT NULL,parsed TEXT,normalized TEXT); CREATE TABLE IF NOT EXISTS parsed(seq INTEGER PRIMARY KEY AUTOINCREMENT,revision TEXT UNIQUE NOT NULL,binding TEXT NOT NULL,receipt BLOB NOT NULL); CREATE TABLE IF NOT EXISTS normalized(revision TEXT PRIMARY KEY,binding TEXT NOT NULL,inventory BLOB NOT NULL); PRAGMA user_version=1")
-	if err != nil {
-		db.Close()
-		return nil, err
-	}
-	return db, nil
-}
-func commitParsed(db *sql.DB, root string, verified verifiedReceipt, prior sql.NullString) (committedInventory, error) {
-	if verified.stage == "" {
-		return committedInventory{}, fmt.Errorf("unverified receipt")
-	}
-	revision := contracts.RevisionID(id())
-	dest := filepath.Join(root, "parsed", string(revision))
-	if err := os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
-		return committedInventory{}, err
-	}
-	if err := os.Rename(verified.stage, dest); err != nil {
-		return committedInventory{}, err
-	}
-	if err := syncDir(filepath.Dir(dest)); err != nil {
-		return committedInventory{}, err
-	}
-	receipt := verified.receipt
-	for _, files := range [][]contracts.FileRef{receipt.ParsedFiles, receipt.RejectFiles, receipt.SourceFiles} {
-		for i := range files {
-			files[i].Path = filepath.ToSlash(filepath.Join("parsed", string(revision), files[i].Path))
-		}
-	}
-	tx, err := db.Begin()
-	if err != nil {
-		return committedInventory{}, err
-	}
-	defer tx.Rollback()
-	if _, err = tx.Exec("INSERT INTO parsed(revision,binding,receipt) VALUES (?,?,?)", revision, receipt.Identity.Binding, encode(receipt)); err != nil {
-		return committedInventory{}, err
-	}
-	result, err := tx.Exec("UPDATE bindings SET parsed=? WHERE id=? AND parsed IS ?", revision, receipt.Identity.Binding, prior)
-	if err != nil {
-		return committedInventory{}, err
-	}
-	n, err := result.RowsAffected()
-	if err != nil || n != 1 {
-		return committedInventory{}, fmt.Errorf("parsed revision compare-and-swap failed")
-	}
-	if err = tx.Commit(); err != nil {
-		return committedInventory{}, err
-	}
-	rows, err := db.Query("SELECT revision,receipt FROM parsed WHERE binding=? ORDER BY seq", receipt.Identity.Binding)
-	if err != nil {
-		return committedInventory{}, err
-	}
-	defer rows.Close()
-	inventory := committedInventory{revision: revision}
-	for rows.Next() {
-		var rev contracts.RevisionID
-		var raw []byte
-		if err = rows.Scan(&rev, &raw); err != nil {
-			return committedInventory{}, err
-		}
-		var r contracts.CollectionReceipt
-		if err = json.Unmarshal(raw, &r); err != nil {
-			return committedInventory{}, err
-		}
-		inventory.receipts = append(inventory.receipts, r)
-		for _, f := range r.ParsedFiles {
-			inventory.members = append(inventory.members, member{f, rev})
-		}
-	}
-	if err = rows.Err(); err != nil {
-		return committedInventory{}, err
-	}
-	sorted := append([]member(nil), inventory.members...)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i].File.Path < sorted[j].File.Path })
-	// encoding/json sorts map keys; integer and ASCII path values are canonical here.
-	files := []map[string]any{}
-	for _, m := range sorted {
-		files = append(files, map[string]any{"path": m.File.Path, "sha256": m.File.SHA256, "bytes": m.File.Bytes, "rows": m.File.Rows})
-	}
-	inventory.digest = hash(encode(map[string]any{"binding_id": receipt.Identity.Binding, "input_revision": revision, "files": files}))
-	return inventory, nil
-}
 func copyProject(source, destination string) (map[string]string, error) {
 	hashes := map[string]string{}
 	err := filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
@@ -395,6 +305,12 @@ func copyProject(source, destination string) (map[string]string, error) {
 		rel, err := filepath.Rel(source, path)
 		if err != nil {
 			return err
+		}
+		if !contracts.ProductionProjectPath(filepath.ToSlash(rel)) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() {
 			return os.MkdirAll(filepath.Join(destination, rel), 0700)
@@ -412,53 +328,40 @@ func copyProject(source, destination string) (map[string]string, error) {
 	})
 	return hashes, err
 }
-func Execute(ctx context.Context, req Request) (report contracts.RunReport, err error) {
+func Execute(ctx context.Context, req Request) (contracts.RunReport, error) {
+	return execute(ctx, req, nil)
+}
+
+func checkpointAt(checkpoint func(string), name string) {
+	if checkpoint != nil {
+		checkpoint(name)
+	}
+}
+
+func execute(ctx context.Context, req Request, checkpoint func(string)) (report contracts.RunReport, err error) {
 	limits := Limits()
 	report = contracts.RunReport{Resources: map[string]contracts.ResourceUsage{}, APIVersion: contracts.APIVersion, Kind: "RunReport", Identity: contracts.Identity{Binding: contracts.BindingID(req.Binding), Run: contracts.RunID(id()), Batch: contracts.BatchID(id()), Attempt: contracts.AttemptID(id())}, Outcome: "running", Strict: req.Strict, Limits: limits, Inputs: []contracts.InputRef{}, Counts: []contracts.Counts{}, Content: map[string]string{}, Resolution: map[string]contracts.ValueOrigin{}, Diagnostics: []contracts.Diagnostic{}}
+	if req.Resolution != nil {
+		report.Resolution = req.Resolution
+	}
 	if req.CaseID != "" {
 		caseID := req.CaseID
 		report.Identity.Case = &caseID
 	}
+	var state *sql.DB
+	var owner *os.File
+	started := false
 	defer func() {
-		if err == nil {
-			return
+		err = finishFailure(ctx, &report, err)
+		if started {
+			err = persistOutcome(state, artifactRoot(req), req, &report, err)
 		}
-		if ctx.Err() != nil {
-			err = failure(130, "cancelled", ctx.Err())
-			report.Outcome = "cancelled"
+		if state != nil {
+			state.Close()
 		}
-		report.Exit = 1
-		category, code := "execution", report.Outcome
-		var f *Failure
-		if errors.As(err, &f) {
-			report.Exit = f.Code
-			category = f.Category
-			switch category {
-			case "busy":
-				code = "workspace-busy"
-				report.Outcome = "blocked"
-			case "cancelled":
-				code = "cancelled"
-			case "assertion":
-				code = "required-check"
-			case "invalid-input":
-				code = "invalid-field"
-			case "incomplete-capability":
-				code = "missing-dependency"
-			case "integrity":
-				code = "receipt-integrity"
-				if report.AcquisitionComplete {
-					code = "build-integrity"
-				}
-			}
-			if f.DiagnosticCode != "" {
-				code = f.DiagnosticCode
-			}
+		if owner != nil {
+			owner.Close()
 		}
-		if strings.HasPrefix(err.Error(), "execution: unsupported-shape:") {
-			code = "unsupported-shape"
-		}
-		report.Diagnostics = append(report.Diagnostics, contracts.Diagnostic{Category: category, Code: code, Message: err.Error()})
 	}()
 	if ctx.Err() != nil {
 		return report, ctx.Err()
@@ -476,7 +379,7 @@ func Execute(ctx context.Context, req Request) (report contracts.RunReport, err 
 	if e != nil {
 		return report, e
 	}
-	defer lease.Close()
+	owner = lease
 	if e = syscall.Flock(int(lease.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); e != nil {
 		return report, failure(5, "busy", e)
 	}
@@ -484,7 +387,7 @@ func Execute(ctx context.Context, req Request) (report contracts.RunReport, err 
 	if e != nil {
 		return report, e
 	}
-	defer db.Close()
+	state = db
 	selection := string(encode([]string{req.Definition, req.Route, req.Source}))
 	var previousSelection string
 	var priorParsed, priorNormalized sql.NullString
@@ -501,225 +404,63 @@ func Execute(ctx context.Context, req Request) (report contracts.RunReport, err 
 		v := contracts.RevisionID(priorNormalized.String)
 		report.NormalizedRevision = &v
 	}
-	stage := filepath.Join(artifact, "staging", string(report.Identity.Attempt))
-	if e = os.MkdirAll(stage, 0700); e != nil {
-		return report, e
-	}
-	before, e := os.Stat(req.Source)
-	if e != nil {
-		return report, e
-	}
-	if !before.Mode().IsRegular() || before.Size() > limits.InputBytes {
-		return report, failure(2, "invalid-input", fmt.Errorf("source must be one regular file within byte budget"))
-	}
-	f, e := os.Open(req.Source)
-	if e != nil {
-		return report, e
-	}
-	data, e := io.ReadAll(io.LimitReader(f, limits.InputBytes+1))
-	f.Close()
-	if e != nil {
-		return report, e
-	}
-	after, e := os.Stat(req.Source)
-	if e != nil {
-		return report, e
-	}
-	if int64(len(data)) > limits.InputBytes || !os.SameFile(before, after) || before.Size() != after.Size() || !before.ModTime().Equal(after.ModTime()) {
-		return report, failure(1, "execution", fmt.Errorf("source changed during snapshot"))
-	}
-	input := contracts.InputRef{Locator: req.Source, SHA256: hash(data), Bytes: int64(len(data))}
-	input.ID = hash(encode([]string{input.Locator, input.SHA256}))
-	report.Inputs = []contracts.InputRef{input}
-	if e = durableWrite(filepath.Join(stage, "input.json"), data); e != nil {
-		return report, e
-	}
-	collectorRequest := plugins.Request{Identity: report.Identity, Input: input, Stage: stage, Source: filepath.Join(stage, "input.json"), AcquiredAt: time.Now().UTC().Format(time.RFC3339Nano), Limits: limits}
-	if e = writeJSON(filepath.Join(stage, "context.json"), collectorRequest); e != nil {
-		return report, e
-	}
-	if e = os.Chmod(filepath.Join(stage, "context.json"), 0400); e != nil {
-		return report, e
-	}
-	environment := []string{
-		"BATZ_STAGE_DIR=" + stage, "BATZ_SOURCE_PATH=" + collectorRequest.Source,
-		"BATZ_RUN_ID=" + string(report.Identity.Run), "BATZ_BINDING_ID=" + string(report.Identity.Binding),
-		"BATZ_BATCH_ID=" + string(report.Identity.Batch), "BATZ_ATTEMPT_ID=" + string(report.Identity.Attempt),
-	}
-	if report.Identity.Case != nil {
-		environment = append(environment, "BATZ_CASE_ID="+*report.Identity.Case)
-	}
-	report.Outcome = "acquisition-failed"
-	collectCtx, cancel := context.WithTimeout(ctx, time.Duration(limits.CollectionSeconds)*time.Second)
-	collectionUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, collectCtx, lease, stage, filepath.Join(stage, "collector.log"), childBudget{limits.ScratchBytes, []string{stage}}, environment, filepath.Join(req.Root, "runtime/.local/batz-collector"), req.NativeConfig, filepath.Join(stage, "context.json"))
-	report.Resources["collection"] = collectionUsage
-	cancel()
-	if e != nil {
-		var childExit *exec.ExitError
-		if errors.As(e, &childExit) && childExit.ExitCode() == 2 {
-			return report, failure(1, "execution", fmt.Errorf("unsupported-shape: expected CloudTrail Records JSON (%w)", e))
+	if req.Retry && req.RetryRun != "" {
+		var raw []byte
+		if e := db.QueryRow("SELECT report FROM runs WHERE id=? AND binding=?", req.RetryRun, req.Binding).Scan(&raw); e != nil {
+			return report, failure(2, "invalid-input", e)
 		}
-		return report, e
-	}
-	verified, e := verifyReceipt(stage, collectorRequest)
-	if e != nil {
-		return report, failure(4, "integrity", e)
-	}
-	inventory, e := commitParsed(db, artifact, verified, priorParsed)
-	if e != nil {
-		return report, e
-	}
-	report.ParsedRevision = &inventory.revision
-	report.AcquisitionComplete = true
-	report.Outcome = "parsed-committed"
-	parseCounts := contracts.Counts{Boundary: "parse"}
-	report.Inputs = []contracts.InputRef{}
-	for _, r := range inventory.receipts {
-		parseCounts.Accepted += r.Counts.Accepted
-		parseCounts.Rejected += r.Counts.Rejected
-		report.Inputs = append(report.Inputs, r.Inputs...)
-	}
-	report.Counts = append(report.Counts, parseCounts)
-	attempt := filepath.Join(artifact, "builds", string(report.Identity.Attempt))
-	if e = os.MkdirAll(attempt, 0700); e != nil {
-		return report, e
-	}
-	content, e := copyProject(req.Project, filepath.Join(attempt, "project"))
-	if e != nil {
-		return report, failure(2, "invalid-input", e)
-	}
-	executable, e := os.Executable()
-	if e != nil {
-		return report, e
-	}
-	for name, path := range map[string]string{"pipeline": req.Definition, "collector-config": req.NativeConfig, "runtime-lock": filepath.Join(req.Root, "runtime/dependencies.lock.json"), "model-runner": filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), "coordinator": executable} {
-		ref, e := fileRef(req.Root, path, 0)
-		if e != nil {
-			return report, e
-		}
-		content[name] = ref.SHA256
-	}
-	report.Content = content
-	revision := contracts.RevisionID(id())
-	nonce := id()
-	bindingHash := hash([]byte(req.Binding))
-	output := filepath.Join(artifact, "normalized", string(revision))
-	if e = os.MkdirAll(filepath.Dir(output), 0700); e != nil {
-		return report, e
-	}
-	buildRequest := map[string]any{"artifact_root": artifact, "project": filepath.Join(attempt, "project"), "model_state": filepath.Join(artifact, "models", bindingHash), "output": output, "members": inventory.members, "input_revision": inventory.revision, "input_digest": inventory.digest, "attempt_id": report.Identity.Attempt, "evaluation_nonce": nonce, "binding_id": req.Binding, "revision": revision}
-	requestPath := filepath.Join(attempt, "request.json")
-	if e = writeJSON(requestPath, buildRequest); e != nil {
-		return report, e
-	}
-	report.Outcome = "normalization-failed"
-	modelCtx, modelCancel := context.WithTimeout(ctx, time.Duration(limits.ModelSeconds)*time.Second)
-	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "models", bindingHash), filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
-	report.Resources["model"] = modelUsage
-	modelCancel()
-	if e != nil {
-		var childExit *exec.ExitError
-		if errors.As(e, &childExit) && childExit.ExitCode() == 4 {
-			return report, failure(4, "assertion", e)
-		}
-		if errors.As(e, &childExit) && childExit.ExitCode() == 3 {
-			return report, &Failure{Code: 3, Category: "incomplete-capability", DiagnosticCode: "timestamp-representation-unavailable", Message: "timestamp-representation-unavailable: supplied timestamp needs an owner-approved representation; " + e.Error()}
-		}
-		return report, e
-	}
-	var built builtRevision
-	b, e := os.ReadFile(filepath.Join(output, "built.json"))
-	if e != nil {
-		return report, e
-	}
-	if e = json.Unmarshal(b, &built); e != nil {
-		return report, e
-	}
-	if !built.Checks || built.InputRevision != inventory.revision || built.InputDigest != inventory.digest || built.AttemptID != report.Identity.Attempt || built.Nonce != nonce {
-		return report, failure(4, "integrity", fmt.Errorf("stale evaluated build"))
-	}
-	for _, dataset := range built.Datasets {
-		var rows int64
-		for _, file := range dataset.Files {
-			if e = verifyFile(artifact, file); e != nil {
-				return report, failure(4, "integrity", e)
-			}
-			rows += file.Rows
-		}
-		if rows != dataset.Rows {
-			return report, failure(4, "integrity", fmt.Errorf("dataset counts"))
-		}
-	}
-	if e = verifyFile(artifact, built.Catalog); e != nil {
-		return report, failure(4, "integrity", e)
-	}
-	for _, file := range built.Rejects {
-		if e = verifyFile(artifact, file); e != nil {
+		var selected contracts.RunReport
+		if e := json.Unmarshal(raw, &selected); e != nil {
 			return report, failure(4, "integrity", e)
 		}
-	}
-	quality := "complete"
-	allInputs := []contracts.InputRef{}
-	sources := []contracts.FileRef{}
-	rejects := append([]contracts.FileRef(nil), built.Rejects...)
-	for _, r := range inventory.receipts {
-		allInputs = append(allInputs, r.Inputs...)
-		sources = append(sources, r.SourceFiles...)
-		rejects = append(rejects, r.RejectFiles...)
-		if r.Counts.Rejected > 0 {
-			quality = "partial"
+		if selected.ParsedRevision == nil || !priorParsed.Valid || string(*selected.ParsedRevision) != priorParsed.String {
+			return report, failure(2, "invalid-input", errors.New("requested run does not match current parsed inventory"))
 		}
 	}
-	if built.Counts.Rejected > 0 {
-		quality = "partial"
-	}
-	report.Counts = append(report.Counts, built.Counts)
-	published := contracts.PublishedInventory{APIVersion: contracts.APIVersion, Kind: "PublishedInventory", Revision: revision, Identity: report.Identity, InputRevision: inventory.revision, InputDigest: contracts.MembershipDigest(inventory.digest), Inputs: allInputs, Profile: contracts.Profile, Content: content, Datasets: built.Datasets, SourceFiles: sources, RejectFiles: rejects, Counts: report.Counts, Quality: quality, Catalog: built.Catalog}
-	if e = writeJSON(filepath.Join(output, "inventory.json"), published); e != nil {
+	started = true
+	if e = saveRun(db, artifact, req, report); e != nil {
 		return report, e
 	}
-	if e = syncDir(output); e != nil {
-		return report, e
-	}
-	if e = syncDir(filepath.Dir(output)); e != nil {
-		return report, e
-	}
-	report.Outcome = "publication-failed"
-	tx, e := db.Begin()
+	var inventory committedInventory
+	recovered, e := recoverParsed(db, artifact, req, report.Identity.Run)
 	if e != nil {
 		return report, e
 	}
-	defer tx.Rollback()
-	if _, e = tx.Exec("INSERT INTO normalized(revision,binding,inventory) VALUES (?,?,?)", revision, req.Binding, encode(published)); e != nil {
+	if e = exportReports(db, artifact, req.Binding); e != nil {
 		return report, e
 	}
-	result, e := tx.Exec("UPDATE bindings SET normalized=? WHERE id=? AND parsed=? AND normalized IS ?", revision, req.Binding, inventory.revision, priorNormalized)
+	if recovered != nil {
+		priorParsed = sql.NullString{String: string(recovered.revision), Valid: true}
+	}
+	if recovered != nil {
+		inventory = *recovered
+	} else if req.Retry {
+		if !priorParsed.Valid {
+			return report, failure(2, "invalid-input", errors.New("no committed parsed inventory to retry"))
+		}
+		inventory, e = loadInventory(db, report.Identity.Binding, contracts.RevisionID(priorParsed.String))
+	} else {
+		var verified verifiedReceipt
+		verified, e = collect(ctx, req, artifact, lease, &report, checkpoint)
+		if e == nil {
+			inventory, e = publishParsed(db, artifact, verified, priorParsed, checkpoint)
+		}
+	}
 	if e != nil {
 		return report, e
 	}
-	n, e := result.RowsAffected()
-	if e != nil || n != 1 {
-		return report, failure(4, "integrity", fmt.Errorf("normalized compare-and-swap failed"))
-	}
-	if e = tx.Commit(); e != nil {
+	applyInventory(&report, inventory)
+	if e := verifyInventory(artifact, inventory); e != nil {
+		report.Outcome = "normalization-failed"
 		return report, e
 	}
-	report.Outcome = "published"
-	report.Quality = &quality
-	report.NormalizedRevision = &revision
-	catalog := filepath.Join(artifact, built.Catalog.Path)
-	report.Catalog = &catalog
-	report.Coverage = contracts.Coverage{Mapped: built.Counts.Accepted, Unsupported: built.Counts.Unsupported}
-	if req.Strict && quality == "partial" {
-		report.Exit = 6
+	if req.Retry || recovered != nil {
+		if e := saveRun(db, artifact, req, report); e != nil {
+			return report, e
+		}
 	}
-	if e = os.MkdirAll(filepath.Join(artifact, "reports"), 0700); e != nil {
-		return report, e
-	}
-	if e = writeJSON(filepath.Join(artifact, "reports", string(report.Identity.Run)+".json"), report); e != nil {
-		return report, e
-	}
-	return report, nil
+	checkpointAt(checkpoint, "after-parsed-commit")
+	return normalize(ctx, req, db, artifact, lease, inventory, priorNormalized, report, checkpoint)
 }
 
 // NewBindingID returns a fresh independent binding scope for a direct run.

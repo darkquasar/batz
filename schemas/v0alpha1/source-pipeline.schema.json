@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "apiVersion": {
-      "const": "batz/v0alpha1"
+      "const": "batz/v0alpha2"
     },
     "kind": {
       "const": "SourcePipeline"
@@ -24,10 +24,25 @@
         "project": {
           "type": "string",
           "minLength": 1
+        },
+        "staging": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "evidence": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "checks": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
         }
       },
       "required": [
-        "project"
+        "project",
+        "staging",
+        "evidence",
+        "checks"
       ],
       "additionalProperties": false
     },
@@ -93,12 +108,19 @@
                   ],
                   "additionalProperties": false
                 }
+              },
+              "framing": {
+                "enum": [
+                  "records-json",
+                  "jsonl"
+                ]
               }
             },
             "required": [
               "engine",
               "config",
-              "params"
+              "params",
+              "framing"
             ],
             "additionalProperties": false
           },

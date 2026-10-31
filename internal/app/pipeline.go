@@ -1,15 +1,19 @@
 package app
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"batz/internal/contracts"
+	pipeline "batz/internal/run"
 	schema "batz/schemas/v0alpha1"
 	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
@@ -84,6 +88,9 @@ func loadPipeline(path string) (contracts.SourcePipeline, error) {
 	if d.Decode(&extra) != io.EOF {
 		return result, &documentError{Source: path, Field: "document", Message: "multiple YAML documents"}
 	}
+	if value["apiVersion"] != "batz/v0alpha2" {
+		return result, &documentError{Source: path, Field: "apiVersion", Message: "invalid-version: unsupported SourcePipeline contract; expected batz/v0alpha2"}
+	}
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return result, &documentError{Source: path, Field: "document", Message: err.Error()}
@@ -124,4 +131,70 @@ func loadPipeline(path string) (contracts.SourcePipeline, error) {
 		return result, &documentError{Source: path, Field: "version", Message: "invalid-version: unsupported pipeline contract"}
 	}
 	return result, nil
+}
+
+// Native discovery validates IDs before acquisition. It runs on a private copy,
+// so SQLMesh logs/cache and working/state files never touch contributor content.
+func validateModelReferences(parent context.Context, root, project string, contract contracts.ExecutionContract) error {
+	dir, err := os.MkdirTemp("", "batz-model-preflight-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	copied := filepath.Join(dir, "project")
+	if err := copyProject(project, copied); err != nil {
+		return err
+	}
+	raw, err := json.Marshal(map[string]any{"validate_only": true, "project": copied, "contract": contract})
+	if err != nil {
+		return err
+	}
+	request := filepath.Join(dir, "request.json")
+	if err := os.WriteFile(request, raw, 0600); err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+	defer cancel()
+	_, err = pipeline.InspectPrivate(ctx, dir, "", filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py"), request)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("invalid native model references: %w", err)
+	}
+
+	return nil
+}
+
+func validateProjectContent(root string) error {
+	return filepath.WalkDir(root, func(path string, entry os.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in normalization content")
+		}
+		relative, e := filepath.Rel(root, path)
+		if e != nil {
+			return e
+		}
+		relative = filepath.ToSlash(relative)
+		if !entry.IsDir() && filepath.Ext(path) == ".py" {
+			return fmt.Errorf("unsupported-content: Python in %s", path)
+		}
+		// These SQLMesh inputs are unsupported by the production contract. Ignoring
+		// them would make contributor tests and actual execution disagree.
+		first, _, _ := strings.Cut(relative, "/")
+		switch first {
+		case "external_models.yaml", "external_models.yml", "metrics", "signals", "materializations", "linting":
+			return fmt.Errorf("unsupported-content: native execution input %s", path)
+		}
+		if !entry.IsDir() && contracts.ProductionProjectPath(relative) {
+			ext := filepath.Ext(path)
+			if ext != ".sql" && ext != ".yaml" && ext != ".yml" && ext != ".csv" {
+				return fmt.Errorf("unsupported-content: %s", path)
+			}
+		}
+		return nil
+	})
 }

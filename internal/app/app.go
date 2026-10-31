@@ -17,6 +17,7 @@ import (
 	"syscall"
 
 	"batz/internal/config"
+	"batz/internal/contracts"
 	pipeline "batz/internal/run"
 )
 
@@ -38,13 +39,17 @@ func resolve(value, root, declaring, workspace string) string {
 	return config.ResolvePath(value, root, workspace, declaring)
 }
 func Execute(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "status" {
+		return statusCommand(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "explain" {
 		return explain(args[1:], stdout, stderr)
 	}
 	diagnostic := func(code int, message string) int { return preflightDiagnostic(stderr, code, errors.New(message)) }
-	if len(args) < 2 || args[0] != "run" {
+	if len(args) < 2 || (args[0] != "run" && args[0] != "retry") {
 		return diagnostic(2, "usage: batz run <pipeline.yaml> --workspace PATH --route ROUTE --input path=FILE")
 	}
+	modelsOnly := args[0] == "retry"
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	project := fs.String("project", "", "content checkout")
@@ -55,6 +60,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	caseFile := fs.String("case", "", "explicit case")
 	interactive := fs.Bool("interactive", false, "prompt for missing values")
 	strict := fs.Bool("strict", false, "fail command for published partial")
+	retryRun := fs.String("run-id", "", "pin retry to the failed run's current parsed inventory")
 	values := inputs{}
 	fs.Var(values, "input", "key=value")
 	definitionArg := ""
@@ -68,6 +74,9 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	}
 	if fs.NArg() != 0 {
 		return diagnostic(2, "unexpected positional arguments")
+	}
+	if *retryRun != "" && !modelsOnly {
+		return diagnostic(2, "--run-id is only valid for retry")
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -168,9 +177,6 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if selected.Input.Engine != "bento" || selected.Output.Parsed.Format != "parquet" {
 		return diagnostic(2, "unsupported native route")
 	}
-	if len(selected.Output.Normalized.Models) != 1 || selected.Output.Normalized.Models["api_activity"] != "cloudtrail.api_activity" {
-		return diagnostic(2, "invalid-field: unsupported local model selection")
-	}
 	names := make([]string, 0, len(selected.Input.Params))
 	for name := range selected.Input.Params {
 		names = append(names, name)
@@ -196,7 +202,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if len(missing) > 0 {
 		native := resolve(selected.Input.Config, *project, filepath.Dir(definition), *workspace)
 		models := resolve(manifest.Normalization.Project, *project, filepath.Dir(definition), *workspace)
-		for _, path := range []string{native, filepath.Join(models, "config.yaml"), filepath.Join(*project, "runtime/.local/batz-collector"), filepath.Join(*project, "runtime/.local/venv/bin/python"), filepath.Join(*project, "runtime/sqlmesh/runner.py")} {
+		for _, path := range executionAssets(*project, native, models, modelsOnly) {
 			if _, e := os.Stat(path); e != nil {
 				missing = append(missing, "missing-asset: "+path)
 			}
@@ -226,7 +232,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	}
 	native := resolve(selected.Input.Config, *project, filepath.Dir(definition), *workspace)
 	models := resolve(manifest.Normalization.Project, *project, filepath.Dir(definition), *workspace)
-	for _, path := range []string{native, filepath.Join(models, "config.yaml"), filepath.Join(*project, "runtime/.local/batz-collector"), filepath.Join(*project, "runtime/.local/venv/bin/python"), filepath.Join(*project, "runtime/sqlmesh/runner.py")} {
+	for _, path := range executionAssets(*project, native, models, modelsOnly) {
 		if _, err = os.Stat(path); err != nil {
 			return diagnostic(3, "missing-asset: "+path)
 		}
@@ -234,38 +240,43 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if err = validateNative(native); err != nil {
 		return diagnostic(2, err.Error())
 	}
-	if err = verifyRuntime(*project); err != nil {
+	if modelsOnly {
+		err = verifyRuntimeArtifacts(*project, "python")
+	} else {
+		err = verifyRuntime(*project)
+	}
+	if err != nil {
 		return diagnostic(4, err.Error())
 	}
-	// Scan before collection and before any framework discovery/import.
-	err = filepath.WalkDir(models, func(path string, entry os.DirEntry, e error) error {
-		if e != nil {
-			return e
-		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in normalization content")
-		}
-		if !entry.IsDir() {
-			ext := filepath.Ext(path)
-			if ext != ".sql" && ext != ".yaml" && ext != ".yml" && ext != ".csv" {
-				return fmt.Errorf("unsupported-content: %s", path)
-			}
-		}
-		return nil
-	})
+	// Admission excludes contributor metadata from execution. Python and
+	// symlinks are refused even outside the production snapshot.
+	err = validateProjectContent(models)
 	if err != nil {
 		return diagnostic(2, err.Error())
 	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	if err := validateModelReferences(ctx, *project, models, manifest.Execution(*route)); err != nil {
+		code := 2
+		if errors.Is(err, context.Canceled) {
+			code = 130
+		}
+		if errors.Is(err, context.DeadlineExceeded) {
+			code = 1
+		}
+		return diagnostic(code, err.Error())
+	}
 	if *binding == "" {
+		if modelsOnly {
+			return diagnostic(2, "retry requires an existing binding ID")
+		}
 		tmp := pipeline.NewBindingID()
 		*binding = tmp
 	}
 	if !regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$").MatchString(*binding) {
 		return diagnostic(2, "invalid binding ID")
 	}
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	report, err := pipeline.Execute(ctx, pipeline.Request{CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict})
+	report, err := pipeline.Execute(ctx, pipeline.Request{Contract: manifest.Execution(*route), CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict, Retry: modelsOnly, RetryRun: contracts.RunID(*retryRun), Resolution: selection.Origins})
 	report.Resolution = selection.Origins
 	if e := json.NewEncoder(stdout).Encode(report); e != nil {
 		return diagnostic(1, e.Error())
@@ -275,4 +286,12 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 		return report.Exit
 	}
 	return report.Exit
+}
+
+func executionAssets(root, native, models string, modelsOnly bool) []string {
+	paths := []string{native, filepath.Join(models, "config.yaml"), filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py")}
+	if !modelsOnly {
+		paths = append(paths, filepath.Join(root, "runtime/.local/batz-collector"))
+	}
+	return paths
 }

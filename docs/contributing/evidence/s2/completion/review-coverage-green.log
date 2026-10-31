@@ -1,8 +1,0 @@
-{"Time":"2026-10-29T16:48:36.203374+10:00","Action":"start","Package":"batz/internal/app"}
-{"Time":"2026-10-29T16:48:36.620752+10:00","Action":"run","Package":"batz/internal/app","Test":"TestExplicitLocalExampleWithRouteIsAccepted"}
-{"Time":"2026-10-29T16:48:36.620888+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplicitLocalExampleWithRouteIsAccepted","Output":"=== RUN   TestExplicitLocalExampleWithRouteIsAccepted\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:48:43.508548+10:00","Action":"output","Package":"batz/internal/app","Test":"TestExplicitLocalExampleWithRouteIsAccepted","Output":"--- PASS: TestExplicitLocalExampleWithRouteIsAccepted (6.89s)\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:48:43.508693+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestExplicitLocalExampleWithRouteIsAccepted","Elapsed":6.89}
-{"Time":"2026-10-29T16:48:43.508994+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:48:43.512278+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t7.307s\n"}
-{"Time":"2026-10-29T16:48:43.512315+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":7.308}

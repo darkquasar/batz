@@ -1,6 +1,0 @@
-=== RUN   TestSavedBindingEnrichesExplainWithOrigin
-    explain_stages_test.go:80: saved context failed: 2  {"category":"invalid-input","code":"invalid-field","field":"","source":"cli","message":"flag provided but not defined: -binding"}
---- FAIL: TestSavedBindingEnrichesExplainWithOrigin (0.00s)
-FAIL
-FAIL	batz/internal/app	0.286s
-FAIL

@@ -1,1 +1,0 @@
-[["object-read", "arn:aws:iam::111122223333:user/example-responder", 1792929600000000000, 0, [{"observation_id": "16c14077fe8fd8533ca73233720469c1b4f8a664439e00a614d61a5649de43e2", "parsed_revision": "7b42add27f17d0bd346ec38a0cf3b8c2", "file": "parsed/7b42add27f17d0bd346ec38a0cf3b8c2/parsed.parquet", "row": 0}]]]

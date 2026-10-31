@@ -50,9 +50,9 @@ precision, original text and offsets; synthetic tests distinguish nanosecond
 storage from the second-granular source fixture. Undated records have null time.
 
 Bare explain requires no workspace and executes no collector or SQLMesh project.
-Only level 1 is implemented; deeper levels report unavailable. Saved bindings,
-configuration layering, remote routes, recovery commands and portable reader setup
-remain later plan slices. Do not mistake their absence for successful empty output.
+See [explain](explain.md) for declared stages and offline sample previews. Saved bindings and configuration layering are available; see
+[status and model retry](runs.md). Remote routes and portable reader setup remain
+later plan slices. Do not mistake their absence for successful empty output.
 
 Default run exit is zero for checked publication, including record-level partial;
 `--strict` returns 6 for published partial and keeps that revision. Invalid input,

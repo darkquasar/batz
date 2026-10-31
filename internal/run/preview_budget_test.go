@@ -1,3 +1,5 @@
+//go:build batz_app
+
 package run
 
 import (
@@ -11,10 +13,10 @@ import (
 	"batz/internal/scratch"
 )
 
-func TestPreviewBudgetIncludesWritableSiblingPaths(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
+func TestAppPreviewBudgetIncludesWritableSiblingPaths(t *testing.T) {
+	root := os.Getenv("BATZ_TEST_RUNTIME")
+	if root == "" {
+		t.Fatal("native lane requires ci/test app")
 	}
 	private, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -24,8 +26,8 @@ func TestPreviewBudgetIncludesWritableSiblingPaths(t *testing.T) {
 	if err = os.Mkdir(stage, 0700); err != nil {
 		t.Fatal(err)
 	}
-	python := filepath.Join(root, "runtime/.local/venv/bin/python")
-	profile, err := scratch.Profile(private, []string{filepath.Join(root, "runtime/.local/python"), filepath.Join(root, "runtime/.local/venv")})
+	python := filepath.Join(root, "venv/bin/python")
+	profile, err := scratch.Profile(private, []string{filepath.Join(root, "python"), filepath.Join(root, "venv")})
 	if err != nil {
 		t.Fatal(err)
 	}

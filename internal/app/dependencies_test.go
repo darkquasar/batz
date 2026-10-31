@@ -33,6 +33,7 @@ func copyTree(t *testing.T, source, dest string) {
 		t.Fatal(err)
 	}
 }
+
 func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 	root, err := filepath.Abs("../..")
 	if err != nil {
@@ -63,7 +64,11 @@ func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(content, "runtime/.local/batz-collector"), []byte("#!/bin/sh\nexit 97\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.Symlink(filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(content, "runtime/.local/venv/bin/python")); err != nil {
+	tools := os.Getenv("BATZ_TOOLCHAIN_ROOT")
+	if tools == "" {
+		tools = filepath.Join(root, "runtime/.local")
+	}
+	if err = os.Symlink(filepath.Join(tools, "venv/bin/python"), filepath.Join(content, "runtime/.local/venv/bin/python")); err != nil {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer

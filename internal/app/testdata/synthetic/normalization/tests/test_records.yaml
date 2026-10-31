@@ -1,0 +1,11 @@
+test_synthetic_payload_remains_source_faithful:
+  model: probe.records
+  inputs:
+    batz_input.parsed:
+      rows:
+        - {observation_id: synthetic, payload: '{"id":"invented","extra":"retained"}'}
+  outputs:
+    query:
+      partial: true
+      rows:
+        - {observation_id: synthetic, payload: '{"id":"invented","extra":"retained"}', mapping_status: mapped}

@@ -4,14 +4,10 @@ This program never imports a project as Python. The parent copies admitted nativ
 content into an attempt directory and verifies runtime identity before execution.
 """
 from collections import Counter
-import calendar
-from datetime import datetime
-import re
 import hashlib
 import json
 import os
 from pathlib import Path
-import subprocess
 import sys
 
 import duckdb
@@ -46,46 +42,127 @@ def sync(path):
         os.fsync(f.fileno())
 
 
-def source_epoch_ns(value):
-    if value is None:
-        return None
-    match = re.fullmatch(r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:[.]([0-9]{1,9}))?(Z|[+-][0-9]{2}:[0-9]{2})", value)
-    if match is None:
-        raise RequiredCheck("invalid mapped source time")
-    seconds = calendar.timegm(datetime.strptime(match[1], "%Y-%m-%dT%H:%M:%S").timetuple())
-    offset = match[3]
-    if offset != "Z":
-        minutes = int(offset[1:3]) * 60 + int(offset[4:6])
-        seconds -= (1 if offset[0] == "+" else -1) * minutes * 60
-    return seconds * 1_000_000_000 + int((match[2] or "").ljust(9, "0"))
+def validate_contract(context, contract):
+    if contract.get("apiVersion") != "batz-execution/v0alpha1":
+        raise RequiredCheck("unsupported execution contract")
+    names = [contract[k] for k in ("staging", "evidence", "checks")]
+    names += list(contract["outputs"].values())
+    if any(name in ("parsed", "source_staging") for name in contract["outputs"]):
+        raise RequiredCheck("reserved output dataset name")
+    if not contract["outputs"] or len(set(names)) != len(names):
+        raise RequiredCheck("missing or duplicate required model references")
+    for name in names:
+        context.get_model(name, raise_if_missing=True)
+    return names
 
 
+# Versioned minimum common profile. Optional canonical fields, when supplied,
+# retain these types; pipeline checks own their source-specific values.
+_REQUIRED_TYPES = {
+    "@timestamp": "timestamp_ns", "ecs": "struct", "ecs.version": "varchar",
+    "event": "struct", "event.kind": "varchar", "event.action": "varchar",
+    "batz": "struct", "batz.source_payload": "varchar",
+    "batz.input_revision": "varchar", "batz.input_digest": "varchar",
+    "batz.attempt_id": "varchar", "batz.evaluation_nonce": "varchar",
+    "batz.origins": "list", "batz.origins[]": "struct",
+    "batz.origins[].observation_id": "varchar", "batz.origins[].parsed_revision": "varchar",
+    "batz.origins[].file": "varchar", "batz.origins[].row": "bigint",
+}
+_OPTIONAL_TYPES = {
+    "event.id": "varchar", "event.outcome": "varchar", "event.provider": "varchar",
+    "event.category": "list", "event.category[]": "varchar",
+    "event.type": "list", "event.type[]": "varchar",
+    "user": "struct", "user.id": "varchar", "source": "struct", "source.ip": "varchar",
+    "cloud": "struct", "cloud.provider": "varchar", "cloud.region": "varchar",
+    "cloud.account": "struct", "cloud.account.id": "varchar",
+    "batz.profile": "varchar", "batz.actor_account_id": "varchar", "batz.time": "struct",
+    "batz.time.original": "varchar", "batz.time.offset": "varchar",
+    "batz.time.fraction_digits": "integer", "batz.time.uncertainty": "varchar",
+}
 
-def check_timestamp_capability(connection, payload):
-    event = json.loads(payload)
-    identity = event.get("userIdentity")
-    if not isinstance(identity, dict) or (event.get("eventSource"), event.get("eventName"), event.get("eventType"), identity.get("type")) != ("s3.amazonaws.com", "GetObject", "AwsApiCall", "IAMUser"):
-        return
-    value = event.get("eventTime")
-    if not isinstance(value, str):
-        return  # Invalid types remain record-level mapping rejects.
-    match = re.fullmatch(r"([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:[.]([0-9]+))?(Z|[+-][0-9]{2}:[0-9]{2})", value)
-    if match is None:
-        return
-    try:
-        datetime.strptime(match[1], "%Y-%m-%dT%H:%M:%S")
-    except ValueError:
-        return  # Malformed calendar values are not representational limitations.
-    offset = match[3]
-    if offset != "Z" and (int(offset[1:3]) > 23 or int(offset[4:6]) > 59):
-        return
-    if len(match[2] or "") > 9:
-        raise Unavailable("timestamp-representation-unavailable: supplied precision exceeds TIMESTAMP_NS; owner tradeoff required")
-    naive = match[1] + ("." + match[2] if match[2] else "")
-    native = connection.execute("SELECT try_cast(? AS TIMESTAMP_NS)", [naive]).fetchone()[0]
-    instant = source_epoch_ns(value)
-    if native is None or not (-(2**63) < instant < 2**63 - 1):
-        raise Unavailable("timestamp-representation-unavailable: supplied instant exceeds native TIMESTAMP_NS range; owner tradeoff required")
+
+def check_profile(reader, table):
+    fields = {}
+
+    def visit(name, native):
+        fields[name] = native.id
+        if native.id == "struct":
+            for child, kind in native.children:
+                visit(name + "." + child, kind)
+        elif native.id == "list":
+            visit(name + "[]", native.children[0][1])
+
+    for column in reader.execute("SELECT * FROM " + table + " LIMIT 0").description:
+        visit(column[0], column[1])
+    if any(fields.get(name) != kind for name, kind in _REQUIRED_TYPES.items()):
+        raise RequiredCheck("required nested native profile schema failed")
+    if any(name in fields and fields[name] != kind for name, kind in _OPTIONAL_TYPES.items()):
+        raise RequiredCheck("incompatible nested canonical type")
+
+
+def verify_published(reader, binding, request, expected_observations, proof):
+    contract = request["contract"]
+    staging = binding + ".source_staging"
+    observed = Counter(reader.execute(
+        "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM " + staging).fetchall())
+    if observed != expected_observations:
+        raise RequiredCheck("required exact staging membership assertion failed")
+    dispositions = dict(reader.execute("SELECT mapping_status,count(*) FROM " + staging + " GROUP BY mapping_status").fetchall())
+    if dispositions.get("unavailable", 0):
+        raise Unavailable("timestamp-representation-unavailable: staged representation is unavailable")
+    if set(dispositions) - {"mapped", "unsupported", "rejected"}:
+        raise RequiredCheck("unknown staging disposition")
+    if tuple(dispositions.get(status, 0) for status in ("mapped", "unsupported", "rejected")) != tuple(proof[5:8]):
+        raise RequiredCheck("actual staging dispositions differ from build counts")
+    if reader.execute("SELECT count(*) FROM " + staging + " WHERE mapping_status='rejected' AND coalesce(mapping_reject_reason,'')=''").fetchone()[0]:
+        raise RequiredCheck("mapping rejection is missing a durable reason")
+    reject_columns = "observation_id,parsed_revision,parsed_file,parsed_row,payload,mapping_reject_reason"
+    expected_rejects = Counter(reader.execute("SELECT " + reject_columns + " FROM " + staging + " WHERE mapping_status='rejected'").fetchall())
+    actual_rejects = Counter(reader.execute("SELECT " + reject_columns + " FROM read_parquet(?)", [request["reject_path"]]).fetchall())
+    if actual_rejects != expected_rejects:
+        raise RequiredCheck("exported reject membership differs from staging")
+    expected_mapped = Counter(reader.execute(
+        "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM " + staging +
+        " WHERE mapping_status='mapped'").fetchall())
+    actual_origins = Counter()
+    for name in contract["outputs"]:
+        table = binding + "." + ident(name)
+        # Common nested profile and build identity; vendor values belong to SQL.
+        check_profile(reader, table)
+        invalid = reader.execute("SELECT count(*) FROM " + table + " WHERE "
+            "batz.input_revision IS DISTINCT FROM ? OR batz.input_digest IS DISTINCT FROM ? OR "
+            "batz.attempt_id IS DISTINCT FROM ? OR batz.evaluation_nonce IS DISTINCT FROM ? OR "
+            "len(batz.origins) IS DISTINCT FROM 1",
+            [request[k] for k in ("input_revision", "input_digest", "attempt_id", "evaluation_nonce")]).fetchone()[0]
+        if invalid:
+            raise RequiredCheck("required published identity/origin assertion failed")
+        output_origins = Counter(reader.execute(
+            "SELECT batz.origins[1].observation_id,batz.origins[1].parsed_revision,"
+            "batz.origins[1].file,batz.origins[1].row,batz.source_payload FROM " + table).fetchall())
+        if output_origins - expected_mapped:
+            raise RequiredCheck("required exact mapped membership/origin assertion failed")
+        actual_origins |= output_origins
+    if actual_origins != expected_mapped or sum(actual_origins.values()) != proof[5]:
+        raise RequiredCheck("required exact mapped membership/origin assertion failed")
+
+
+def check_build(request, expected_rows, proof_rows, check_rows):
+    if len(check_rows) != 1 or len(check_rows[0]) != 2 or any(type(v) is not int or v < 0 for v in check_rows[0]):
+        raise RequiredCheck("missing or invalid required classified checks")
+    assertions, unavailable = check_rows[0]
+    if unavailable:
+        raise Unavailable("timestamp-representation-unavailable: native pipeline representation requires owner decision")
+    if assertions:
+        raise RequiredCheck("required pipeline semantic assertion failed")
+    if len(proof_rows) != 1 or len(proof_rows[0]) != 8:
+        raise RequiredCheck("missing or duplicate native evaluation evidence")
+    proof = proof_rows[0]
+    expected = tuple(request[k] for k in ("input_revision", "input_digest", "attempt_id", "evaluation_nonce"))
+    if tuple(proof[:4]) != expected or proof[4] != expected_rows:
+        raise RequiredCheck("stale or mismatched native evaluation evidence")
+    if any(type(v) is not int or v < 0 for v in proof[4:]) or sum(proof[5:]) != expected_rows:
+        raise RequiredCheck("native observation accounting failed")
+    return proof
 
 
 def main(request_path):
@@ -124,8 +201,6 @@ def main(request_path):
     actual_rows = connection.execute("SELECT count(*) FROM batz_input.parsed").fetchone()[0]
     if actual_rows != expected_rows:
         raise RequiredCheck("committed input membership row mismatch")
-    for (payload,) in connection.execute("SELECT payload FROM batz_input.parsed").fetchall():
-        check_timestamp_capability(connection, payload)
     # Native external model declarations allow SQLMesh to expand SELECT * exactly.
     external = []
     for table in ("parsed", "build_context"):
@@ -137,43 +212,36 @@ def main(request_path):
         "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM batz_input.parsed").fetchall())
     connection.close()
 
-    cli = [sys.executable, "-I", "-c", "from sqlmesh.cli.main import cli; cli()",
-           "-p", str(project), "--log-file-dir", str(output / "logs")]
-    common = ["plan", "--no-prompts", "--auto-apply",
-              "--execution-time", "2026-01-03"]
-    inherited = ()
-    try:
-        os.fstat(3)
-        inherited = (3,)  # The workspace owner lease survives the coordinator.
-    except OSError:
-        pass
-    commands = [cli + common, cli + common + ["--restate-model", "*",
-                 "--start", "2026-01-01", "--end", "2026-01-02"]]
-    for command in commands:
-        subprocess.run(command, check=True, cwd=project, pass_fds=inherited)
     context = Context(paths=[str(project)])
+    validate_contract(context, request["contract"])
+    # Preserve the qualified apply-then-restate semantics, sharing one Context.
+    # No combined-plan optimization is assumed without equivalence evidence.
+    commands = [{"skip_tests": True, "no_prompts": True, "auto_apply": True,
+                 "execution_time": "2026-01-03"},
+                {"skip_tests": True, "no_prompts": True, "auto_apply": True,
+                 "execution_time": "2026-01-03", "restate_models": ["*"],
+                 "start": "2026-01-01", "end": "2026-01-02"}]
     datasets = []
     try:
+        for command in commands:
+            context.plan(**command)
         adapter = context.engine_adapter
-        proof_name = context.table_name("cloudtrail.build_evidence")
-        proof = adapter.fetchone("SELECT input_revision,input_digest,attempt_id,evaluation_nonce,"
+        proof_name = context.table_name(request["contract"]["evidence"])
+        proof_rows = adapter.fetchall("SELECT input_revision,input_digest,attempt_id,evaluation_nonce,"
                                  "observations,mapped,unsupported,rejected FROM " + proof_name)
-        expected = tuple(request[k] for k in
-                         ("input_revision", "input_digest", "attempt_id", "evaluation_nonce"))
-        if tuple(proof[:4]) != expected or proof[4] != expected_rows:
-            raise RequiredCheck("stale or mismatched native evaluation evidence")
-        for logical, model in [("source_staging", "cloudtrail.source_staging"),
-                               ("api_activity", "cloudtrail.api_activity")]:
+        check_rows = adapter.fetchall("SELECT assertion_failures,capability_failures FROM " + context.table_name(request["contract"]["checks"]))
+        proof = check_build(request, expected_rows, proof_rows, check_rows)
+        for logical, model in [("source_staging", request["contract"]["staging"]), *sorted(request["contract"]["outputs"].items())]:
             table = context.table_name(model)
             path = output / (logical + ".parquet")
             count = adapter.fetchone("SELECT count(*) FROM " + table)[0]
             adapter.execute("COPY (SELECT * FROM " + table + ") TO " + quote(path) + " (FORMAT PARQUET)")
             sync(path)
             datasets.append({"name": logical, "model_id": model,
-                             "schema": "batz-investigation/v0alpha1" if logical == "api_activity" else "batz-source-staging/v0alpha1",
+                             "schema": "batz-source-staging/v0alpha1" if logical == "source_staging" else "batz-investigation/v0alpha1",
                              "files": [file_ref(path, artifact_root, count)], "rows": count})
         reject_path = output / "mapping-rejects.parquet"
-        staging = context.table_name("cloudtrail.source_staging")
+        staging = context.table_name(request["contract"]["staging"])
         adapter.execute("COPY (SELECT * FROM " + staging +
                         " WHERE mapping_status='rejected') TO " + quote(reject_path) + " (FORMAT PARQUET)")
         sync(reject_path)
@@ -210,52 +278,15 @@ def main(request_path):
             reader.execute("INSERT INTO batz_inventory.membership VALUES (?,?,?,?,?,?,?)",
                            [request["binding_id"], dataset["name"], request["revision"],
                             request["input_digest"], member["path"], member["sha256"], member["rows"]])
-    # Staging must preserve the exact committed observation multiset and lineage.
-    staging_observations = Counter(reader.execute(
-        "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM " + binding + ".source_staging").fetchall())
-    if staging_observations != expected_observations:
-        raise RequiredCheck("required exact staging membership assertion failed")
-    expected_mapped = Counter(reader.execute(
-        "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM " + binding +
-        ".source_staging WHERE mapping_status='mapped'").fetchall())
-    actual_mapped_origins = Counter(reader.execute(
-        "SELECT batz.origins[1].observation_id,batz.origins[1].parsed_revision,"
-        "batz.origins[1].file,batz.origins[1].row,batz.source_payload FROM " + binding +
-        ".api_activity WHERE len(batz.origins)=1").fetchall())
-    if actual_mapped_origins != expected_mapped:
-        raise RequiredCheck("required exact mapped membership/origin assertion failed")
-    # Independently check published values against retained source evidence.
-    invalid = reader.execute("SELECT count(*) FROM " + binding + ".api_activity WHERE "
-                             "event.action IS DISTINCT FROM 'object-read' OR event.kind IS DISTINCT FROM 'event' OR "
-                             "ecs.version IS DISTINCT FROM '9.5.0' OR user.id IS DISTINCT FROM "
-                             "json_extract_string(batz.source_payload,'$.userIdentity.arn') OR "
-                             "batz.input_digest IS DISTINCT FROM ? OR batz.evaluation_nonce IS DISTINCT FROM ?",
-                             [request["input_digest"], request["evaluation_nonce"]]).fetchone()[0]
-    if invalid:
-        raise RequiredCheck("required published value/identity assertion failed")
-    actual_mapped = reader.execute("SELECT count(*) FROM " + binding + ".api_activity").fetchone()[0]
-    if actual_mapped != proof[5]:
-        raise RequiredCheck("native mapped count mismatch")
-    origins = reader.execute('SELECT epoch_ns(a."@timestamp"),a.batz.source_payload,p.payload,'
-                             'a.batz.time.original,a.batz.time.fraction_digits '
-                             'FROM ' + binding + '.api_activity a LEFT JOIN ' + binding +
-                             '.parsed p ON a.batz.origins[1].observation_id=p.observation_id '
-                             'WHERE len(a.batz.origins)=1').fetchall()
-    if len(origins) != actual_mapped:
-        raise RequiredCheck("required origin cardinality assertion failed")
-    for instant, retained, source, original, digits in origins:
-        if source is None or retained != source:
-            raise RequiredCheck("required source lineage assertion failed")
-        event_time = json.loads(source).get("eventTime")
-        expected_digits = len(event_time.split(".", 1)[1].split("Z")[0].split("+")[0].split("-")[0]) if event_time and "." in event_time else (0 if event_time else None)
-        if instant != source_epoch_ns(event_time) or original != event_time or digits != expected_digits:
-            raise RequiredCheck("required timestamp value/precision assertion failed")
+    request["reject_path"] = str(reject_path)
+    verify_published(reader, binding, request, expected_observations, proof)
+    reject_rows = reader.execute("SELECT count(*) FROM read_parquet(?)", [str(reject_path)]).fetchone()[0]
     reader.close()
     sync(catalog)
     result = {"input_revision": request["input_revision"], "input_digest": request["input_digest"],
               "attempt_id": request["attempt_id"], "evaluation_nonce": request["evaluation_nonce"],
               "datasets": datasets, "catalog": file_ref(catalog, artifact_root, 0),
-              "rejects": [file_ref(reject_path, artifact_root, proof[7])],
+              "rejects": [file_ref(reject_path, artifact_root, reject_rows)],
               "counts": {"boundary": "normalize", "accepted": proof[5], "rejected": proof[7],
                          "unsupported": proof[6], "excluded": 0},
               "checks_passed": True}
@@ -271,7 +302,19 @@ def main(request_path):
 
 if __name__ == "__main__":
     try:
-        main(sys.argv[1])
+        request = json.loads(Path(sys.argv[1]).read_text())
+        if request.get("validate_only"):
+
+            context = Context(paths=[request["project"]])
+            try:
+                validate_contract(context, request["contract"])
+            finally:
+                context.close()
+        else:
+            main(sys.argv[1])
+    except duckdb.BinderException as error:
+        print("required common result schema failed: " + str(error), file=sys.stderr)
+        sys.exit(4)
     except RequiredCheck as error:
         print(str(error), file=sys.stderr)
         sys.exit(4)

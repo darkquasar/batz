@@ -1,9 +1,0 @@
-{"Time":"2026-10-29T17:01:51.334254+10:00","Action":"start","Package":"batz/internal/app"}
-{"Time":"2026-10-29T17:01:51.765718+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace"}
-{"Time":"2026-10-29T17:01:51.765782+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Output":"=== RUN   TestPreviewUsesAssetsFromTheExplicitWorkspace\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:01:56.49728+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Output":"    explain_paths_test.go:71: unexecuted route acquired another route's sample evidence: {ID:unsupported/source Route:unsupported Kind:source-document Inputs:[] Native:[] Outputs:[decoded] Basis:sample-executed Reason:Actual native preview in qualified private scratch}\n","OutputType":"error"}
-{"Time":"2026-10-29T17:01:56.506479+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Output":"--- FAIL: TestPreviewUsesAssetsFromTheExplicitWorkspace (4.74s)\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:01:56.506492+10:00","Action":"fail","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Elapsed":4.74}
-{"Time":"2026-10-29T17:01:56.506714+10:00","Action":"output","Package":"batz/internal/app","Output":"FAIL\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:01:56.507991+10:00","Action":"output","Package":"batz/internal/app","Output":"FAIL\tbatz/internal/app\t5.173s\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:01:56.508+10:00","Action":"fail","Package":"batz/internal/app","Elapsed":5.174}

@@ -1,3 +1,5 @@
+//go:build batz_app
+
 package scratch_test
 
 import (
@@ -12,13 +14,13 @@ import (
 	"batz/internal/scratch"
 )
 
-func TestNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
+func TestAppNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
 	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
 		t.Skip("native macOS qualification only")
 	}
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
+	root := os.Getenv("BATZ_TEST_RUNTIME")
+	if root == "" {
+		t.Fatal("native lane requires ci/test app")
 	}
 	private, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -28,14 +30,14 @@ func TestNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
 	if err = os.WriteFile(forbidden, []byte("invented"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	reads := []string{filepath.Join(root, "runtime/.local/python"), filepath.Join(root, "runtime/.local/venv")}
+	reads := []string{filepath.Join(root, "python"), filepath.Join(root, "venv")}
 	profile, err := scratch.Profile(private, reads)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	python := filepath.Join(root, "runtime/.local/venv/bin/python")
+	python := filepath.Join(root, "venv/bin/python")
 	if err = scratch.Qualify(ctx, profile, python, private, forbidden); err != nil {
 		t.Fatal(err)
 	}

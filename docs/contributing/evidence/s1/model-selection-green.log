@@ -1,4 +1,0 @@
-=== RUN   TestUndeclaredModelSelectionRefusedBeforeAcquisition
---- PASS: TestUndeclaredModelSelectionRefusedBeforeAcquisition (0.00s)
-PASS
-ok  	batz/internal/app	0.281s

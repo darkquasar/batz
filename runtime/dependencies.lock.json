@@ -1922,7 +1922,7 @@
     "darwin/arm64": {
       "collector": {
         "path": "runtime/.local/batz-collector",
-        "sha256": "d34ef5b0a04b553306d3b9a7b0042f057eb85ae0951e27dc5ab94bf0ffbfb061"
+        "sha256": "2f33741cf15198359e5bf1adf1a55b50eb976377311d14eef048b11d31111ac0"
       },
       "python": {
         "path": "runtime/.local/venv/bin/python",

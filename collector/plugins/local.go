@@ -18,9 +18,10 @@ import (
 	"github.com/warpstreamlabs/bento/public/service"
 )
 
-var ErrUnsupportedShape = errors.New("unsupported-shape: expected CloudTrail Records JSON")
+var ErrUnsupportedShape = errors.New("unsupported-shape: native source decoding failed")
 
 type Request struct {
+	Framing    string             `json:"framing"`
 	Identity   contracts.Identity `json:"identity"`
 	Input      contracts.InputRef `json:"input"`
 	Stage      string             `json:"stage"`
@@ -73,6 +74,9 @@ func Register(j *Job) error {
 		sum := sha256.Sum256(b)
 		if hex.EncodeToString(sum[:]) != j.Request.Input.SHA256 {
 			return nil, fmt.Errorf("input snapshot integrity")
+		}
+		if _, err := SourceRecords(b, j.Request.Framing); err != nil {
+			return nil, fmt.Errorf("%w: %v", ErrUnsupportedShape, err)
 		}
 		return &fileInput{job: j, data: b}, nil
 	}); err != nil {

@@ -1,0 +1,1 @@
+{"apiVersion": "batz/v0alpha1", "kind": "SampleExpectations", "dataset": "findings", "rows": 2, "values": {"event.action": "observed"}}

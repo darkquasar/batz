@@ -1,0 +1,152 @@
+test_required_995_valid_5_mapping_rejects:
+  model: cloudtrail.source_staging
+  inputs:
+    batz_input.parsed:
+      query: |
+        SELECT 'row-' || i AS observation_id,
+          json_object('eventSource','s3.amazonaws.com','eventName','GetObject',
+           'eventType','AwsApiCall','userIdentity',json_object('type','IAMUser'),
+           'eventID', CASE WHEN i<995 THEN to_json('id-' || i) ELSE '42'::JSON END)::VARCHAR AS payload
+        FROM range(1000) r(i)
+  outputs:
+    query:
+      partial: true
+      query: |
+        SELECT 'row-' || i AS observation_id,
+          CASE WHEN i<995 THEN 'mapped' ELSE 'rejected' END AS mapping_status
+        FROM range(1000) r(i)
+test_required_80_mapped_20_unsupported:
+  model: cloudtrail.source_staging
+  inputs:
+    batz_input.parsed:
+      query: |
+        SELECT 'row-' || i AS observation_id,
+          json_object('eventSource','s3.amazonaws.com','eventName',CASE WHEN i<80 THEN 'GetObject' ELSE 'Unknown' END,
+           'eventType','AwsApiCall','userIdentity',json_object('type','IAMUser'))::VARCHAR AS payload
+        FROM range(100) r(i)
+  outputs:
+    query:
+      partial: true
+      query: |
+        SELECT 'row-' || i AS observation_id,
+          CASE WHEN i<80 THEN 'mapped' ELSE 'unsupported' END AS mapping_status
+        FROM range(100) r(i)
+test_time_classification_and_offset:
+  model: cloudtrail.source_staging
+  inputs:
+    batz_input.parsed:
+      rows:
+        - observation_id: offset
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T14:00:00+02:00"}'
+        - observation_id: undated
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"}}'
+        - observation_id: malformed
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-99-25T12:00:00Z"}'
+        - observation_id: too_precise
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T12:00:00.1234567891Z"}'
+        - observation_id: out_of_range
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"1500-01-01T00:00:00Z"}'
+  outputs:
+    query:
+      partial: true
+      rows:
+        - {observation_id: offset, mapping_status: mapped, original_offset: '+02:00', occurrence_time: '2026-10-25 12:00:00'}
+        - {observation_id: undated, mapping_status: mapped, original_offset: null, occurrence_time: null}
+        - {observation_id: malformed, mapping_status: rejected, original_offset: Z, occurrence_time: null}
+        - {observation_id: too_precise, mapping_status: unavailable, original_offset: Z, occurrence_time: null}
+        - {observation_id: out_of_range, mapping_status: unavailable, original_offset: Z, occurrence_time: null}
+test_reviewed_api_read_semantics:
+  model: cloudtrail.api_activity
+  inputs:
+    cloudtrail.source_staging:
+      columns: {occurrence_time: TIMESTAMP_NS, original_time: VARCHAR, original_offset: VARCHAR, fraction_digits: INTEGER}
+      rows:
+        - observation_id: source
+          mapping_status: mapped
+          payload: '{"eventID":"read-1","eventSource":"s3.amazonaws.com","eventName":"GetObject","userIdentity":{"arn":"arn:aws:iam::111122223333:user/example-responder","accountId":"111122223333"},"recipientAccountId":"444455556666","awsRegion":"ap-southeast-2","sourceIPAddress":"AWS Internal"}'
+          caller: AWS Internal
+          occurrence_time: null
+          original_time: null
+          original_offset: null
+          fraction_digits: null
+          parsed_revision: revision
+          parsed_file: file
+          parsed_row: 0
+    batz_input.build_context:
+      rows:
+        - {input_revision: revision, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
+  outputs:
+    query:
+      partial: true
+      rows:
+        - event: {kind: event, category: [web], type: [access], action: object-read, outcome: success, provider: s3.amazonaws.com, id: read-1}
+          user: {id: 'arn:aws:iam::111122223333:user/example-responder'}
+          cloud: {provider: aws, region: ap-southeast-2, account: {id: '444455556666'}}
+          source: {ip: null}
+test_each_malformed_supported_field_is_rejected:
+  model: cloudtrail.source_staging
+  inputs:
+    batz_input.parsed:
+      query: |
+        SELECT field AS observation_id,
+         json_merge_patch('{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"}}'::JSON, bad::JSON)::VARCHAR AS payload
+        FROM (VALUES
+         ('eventID','{"eventID":42}'),
+         ('awsRegion','{"awsRegion":42}'),
+         ('accountId','{"userIdentity":{"accountId":{"bad":true}}}'),
+         ('sourceIPAddress','{"sourceIPAddress":42}'),
+         ('errorCode','{"errorCode":42}')) t(field,bad)
+  outputs:
+    query:
+      partial: true
+      rows:
+        - {observation_id: eventID, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+        - {observation_id: awsRegion, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+        - {observation_id: accountId, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+        - {observation_id: sourceIPAddress, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+        - {observation_id: errorCode, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+test_empty_membership_has_explicit_evaluated_evidence:
+  model: cloudtrail.build_evidence
+  inputs:
+    cloudtrail.source_staging:
+      query: SELECT NULL::VARCHAR AS observation_id, NULL::VARCHAR AS mapping_status WHERE false
+    batz_input.build_context:
+      rows:
+        - {input_revision: empty, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
+  outputs:
+    query:
+      rows:
+        - {input_revision: empty, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce, observations: 0, mapped: 0, unsupported: 0, rejected: 0}
+test_semantic_oracle_rejects_wrong_action_actor_time_and_outcome:
+  model: cloudtrail.required_checks
+  inputs:
+    cloudtrail.api_activity:
+      columns:
+        event: STRUCT(action VARCHAR,kind VARCHAR,outcome VARCHAR)
+        ecs: STRUCT(version VARCHAR)
+        user: STRUCT(id VARCHAR)
+        '"@timestamp"': TIMESTAMP_NS
+        batz: STRUCT(origins STRUCT(observation_id VARCHAR)[],time STRUCT(original VARCHAR,fraction_digits INTEGER))
+      query: |
+        SELECT {'action':action,'kind':'event','outcome':outcome} AS event,
+         {'version':'9.5.0'} AS ecs, {'id':actor} AS "user",
+         make_timestamp_ns(1792929600000000000+shift_ns) AS "@timestamp",
+         {'origins':[{'observation_id':id}], 'time':{'original':'2026-10-25T12:00:00Z','fraction_digits':0}} AS batz
+        FROM (VALUES
+         ('action','wrong','reviewed-actor',0,'success'),
+         ('actor','object-read','wrong-actor',0,'success'),
+         ('time','object-read','reviewed-actor',1,'success'),
+         ('outcome','object-read','reviewed-actor',0,'failure')) t(id,action,actor,shift_ns,outcome)
+    cloudtrail.source_staging:
+      columns: {occurrence_time: TIMESTAMP_NS, original_time: VARCHAR, fraction_digits: INTEGER, mapping_status: VARCHAR}
+      query: |
+        SELECT id AS observation_id,
+         '{"userIdentity":{"arn":"reviewed-actor"}}' AS payload,
+         TIMESTAMP_NS '2026-10-25 12:00:00' AS occurrence_time,
+         '2026-10-25T12:00:00Z' AS original_time,0::INTEGER AS fraction_digits,
+         'mapped' AS mapping_status
+        FROM (VALUES ('action'),('actor'),('time'),('outcome')) t(id)
+  outputs:
+    query:
+      rows:
+        - {assertion_failures: 4, capability_failures: 0}

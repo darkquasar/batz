@@ -1,8 +1,0 @@
-=== RUN   TestOffsetMissingTimeAndDistinctOrigins
---- PASS: TestOffsetMissingTimeAndDistinctOrigins (3.92s)
-=== RUN   TestMalformedMappedFieldTypesBecomeDurableRejects
---- PASS: TestMalformedMappedFieldTypesBecomeDurableRejects (3.74s)
-=== RUN   TestLocalFixturePublishesQueryableRevision
---- PASS: TestLocalFixturePublishesQueryableRevision (3.45s)
-PASS
-ok  	batz/internal/app	11.415s

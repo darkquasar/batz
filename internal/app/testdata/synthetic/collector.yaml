@@ -1,0 +1,14 @@
+input:
+  batz_file: {}
+pipeline:
+  threads: 1
+  processors:
+    - mapping: |
+        root = content().string().split("\n").filter(line -> line.trim() != "").map_each(line -> line.parse_json())
+    - unarchive:
+        format: json_array
+    - mapping: |
+        root.payload = content().string()
+        root.ordinal = count("records") - 1
+output:
+  batz_parquet_receipt: {}

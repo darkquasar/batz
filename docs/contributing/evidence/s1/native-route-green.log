@@ -1,6 +1,0 @@
-=== RUN   TestUnqualifiedNativeInputRefusedBeforeWorkspaceMutation
---- PASS: TestUnqualifiedNativeInputRefusedBeforeWorkspaceMutation (0.00s)
-=== RUN   TestLocalFixturePublishesQueryableRevision
---- PASS: TestLocalFixturePublishesQueryableRevision (3.46s)
-PASS
-ok  	batz/internal/app	3.766s

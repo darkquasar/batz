@@ -1,8 +1,0 @@
-{"Time":"2026-10-29T16:00:24.283588+10:00","Action":"start","Package":"batz/internal/app"}
-{"Time":"2026-10-29T16:00:24.656041+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewRetainsNativeStructuresAndLosslessValues"}
-{"Time":"2026-10-29T16:00:24.656149+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRetainsNativeStructuresAndLosslessValues","Output":"=== RUN   TestPreviewRetainsNativeStructuresAndLosslessValues\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:00:29.153462+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewRetainsNativeStructuresAndLosslessValues","Output":"--- PASS: TestPreviewRetainsNativeStructuresAndLosslessValues (4.50s)\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:00:29.153517+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewRetainsNativeStructuresAndLosslessValues","Elapsed":4.5}
-{"Time":"2026-10-29T16:00:29.153758+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
-{"Time":"2026-10-29T16:00:29.154833+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t4.871s\n"}
-{"Time":"2026-10-29T16:00:29.154851+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":4.871}

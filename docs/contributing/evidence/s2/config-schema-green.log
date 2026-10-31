@@ -1,8 +1,0 @@
-=== RUN   TestPathsRetainDeclaringOriginAcrossLayers
---- PASS: TestPathsRetainDeclaringOriginAcrossLayers (0.00s)
-=== RUN   TestSixLayerPrecedenceAndAtomicCredentialReplacement
---- PASS: TestSixLayerPrecedenceAndAtomicCredentialReplacement (0.00s)
-=== RUN   TestExplicitNullDeletesAndBlankIsRejected
---- PASS: TestExplicitNullDeletesAndBlankIsRejected (0.00s)
-PASS
-ok  	batz/internal/config	0.260s

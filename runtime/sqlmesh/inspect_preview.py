@@ -9,7 +9,7 @@ def expectation_failed(message):
     raise SystemExit(4)
 
 
-def reviewed_expectations(path):
+def reviewed_expectations(path, datasets):
     try:
         expected = json.loads(Path(path).read_text())
     except json.JSONDecodeError:
@@ -17,7 +17,7 @@ def reviewed_expectations(path):
     if (not isinstance(expected, dict) or
             expected.get('apiVersion') != 'batz/v0alpha1' or
             expected.get('kind') != 'SampleExpectations' or
-            expected.get('dataset') != 'api_activity'):
+            expected.get('dataset') not in datasets):
         expectation_failed('unsupported expectation contract')
     if (type(expected.get('rows')) is not int or expected['rows'] < 0 or
             not isinstance(expected.get('values'), dict)):
@@ -99,12 +99,14 @@ def main(request_path):
     })
     runtime = {}
     samples, structures = [], []
-    source = json.loads(Path(request['source']).read_text())
+    source_text = Path(request['source']).read_text()
+    source = json.loads(source_text) if request['framing'] == 'records-json' else {'text': source_text}
     samples.append({'stage': 'source', 'basis': 'sample-executed', 'records': [safe(source)], 'rows': 1,
                     'reason': 'Exact admitted local source document'})
     structures.append({'stage': 'source', 'basis': 'inferred',
                        'fields': [inferred(k, v) for k, v in source.items()]})
-    for dataset in ['parsed', 'source_staging', 'api_activity']:
+    expected = reviewed_expectations(request['expectations'], request['datasets'][2:]) if request.get('expectations') else None
+    for dataset in request['datasets']:
         query = 'SELECT * FROM "preview"."' + dataset + '"'
         cursor = connection.execute(query + ' LIMIT 0')
         fields = [field(d[0], d[1]) for d in cursor.description]
@@ -121,8 +123,7 @@ def main(request_path):
                             'rows': count, 'reason': 'Payloads emitted by actual Bento decoding'})
             structures.append({'stage': 'decoded', 'basis': 'inferred',
                                'fields': [inferred(k, v) for k, v in (decoded[0].items() if decoded else [])]})
-        if dataset == 'api_activity' and request.get('expectations'):
-            expected = reviewed_expectations(request['expectations'])
+        if expected and dataset == expected['dataset']:
             check_reviewed_values(expected, records, count)
         samples.append({'stage': dataset, 'basis': 'sample-executed',
                         'records': [separate(safe(r), dataset + '.' + str(i), runtime) for i, r in enumerate(records)],
@@ -132,9 +133,9 @@ def main(request_path):
     counts = request.get('counts', [])
     observed = {
         'fractional-time': connection.execute(
-            'SELECT count(*) FROM "preview"."source_staging" WHERE fraction_digits > 0').fetchone()[0] > 0,
+            'SELECT count(*) FROM "preview"."' + request['datasets'][2] + '" WHERE epoch_ns("@timestamp") % 1000000000 != 0').fetchone()[0] > 0,
         'rejects': any(boundary['rejected'] > 0 for boundary in counts),
-        'empty-input': not source['Records'],
+        'empty-input': not any(c['accepted'] or c['rejected'] for c in counts if c['boundary']=='parse'),
         'unsupported-events': any(boundary['unsupported'] > 0 for boundary in counts),
     }
     observed_names = [name for name, present in observed.items() if present]

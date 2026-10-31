@@ -1,5 +1,9 @@
 .serena/
 
+# Keep planning documents and development evidence local until moved to specs.
+/docs/contracts/
+/docs/contributing/
+
 # Build and release outputs; release binaries are produced by CI/CD.
 /batz
 /batz-collector

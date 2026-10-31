@@ -31,7 +31,7 @@ class ReviewedExpectations(unittest.TestCase):
 
     def load(self, expected):
         self.path.write_text(json.dumps(expected))
-        return preview.reviewed_expectations(self.path)
+        return preview.reviewed_expectations(self.path, {"api_activity"})
 
     def assert_integrity_failure(self, function, *args):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
@@ -51,7 +51,7 @@ class ReviewedExpectations(unittest.TestCase):
 
     def test_malformed_document(self):
         self.path.write_text("[")
-        self.assert_integrity_failure(preview.reviewed_expectations, self.path)
+        self.assert_integrity_failure(preview.reviewed_expectations, self.path, {"api_activity"})
 
     def test_boolean_row_count(self):
         self.expected["rows"] = True

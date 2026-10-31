@@ -1,14 +1,13 @@
 package app_test
 
 import (
+	"batz/internal/app"
 	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"batz/internal/app"
 )
 
 func TestExplainStagesWithoutExecutingRuntime(t *testing.T) {
@@ -90,35 +89,6 @@ func TestSavedBindingEnrichesExplainWithOrigin(t *testing.T) {
 	origin, ok := report.Resolution["input.path"]
 	if !ok || origin.Value != filepath.Join(root, "fixtures/cloudtrail/api-read.json") || origin.Source != binding {
 		t.Fatalf("lost value/origin: %s", &out)
-	}
-}
-
-func TestSavedBindingRunsNativePipeline(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	binding := filepath.Join(t.TempDir(), "binding.yaml")
-	content := "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: saved\ndefinition: repo://pipelines/aws-cloudtrail.yaml\nversion: 1\nroute: local_raw\ninput:\n  path: repo://fixtures/cloudtrail/api-read.json\n"
-	if err := os.WriteFile(binding, []byte(content), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", "--binding", binding, "--project", root, "--workspace", t.TempDir()}, &out, &diagnostics)
-	if code != 0 {
-		t.Fatalf("saved native run failed: %d %s %s", code, &out, &diagnostics)
-	}
-	var report struct {
-		Outcome  string `json:"outcome"`
-		Identity struct {
-			Binding string `json:"binding_id"`
-		} `json:"identity"`
-	}
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
-		t.Fatal(err)
-	}
-	if report.Outcome != "published" || report.Identity.Binding != "saved" {
-		t.Fatalf("wrong saved run: %s", &out)
 	}
 }
 

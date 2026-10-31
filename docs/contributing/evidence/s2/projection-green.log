@@ -1,4 +1,0 @@
-=== RUN   TestOfflineSampleShowsActualValuesAtEveryBoundary
---- PASS: TestOfflineSampleShowsActualValuesAtEveryBoundary (3.86s)
-PASS
-ok  	batz/internal/app	4.153s

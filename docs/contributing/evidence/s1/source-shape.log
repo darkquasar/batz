@@ -1,4 +1,0 @@
-=== RUN   TestUnsupportedSourceShapeCannotCommitParsedInput
---- PASS: TestUnsupportedSourceShapeCannotCommitParsedInput (0.13s)
-PASS
-ok  	batz/internal/app	0.427s

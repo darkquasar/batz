@@ -1,13 +1,17 @@
-apiVersion: batz/v0alpha1
+apiVersion: batz/v0alpha2
 kind: SourcePipeline
 name: aws-cloudtrail
 version: 1
 normalization:
-  project: repo://normalization
+  project: repo://normalization/cloudtrail
+  staging: cloudtrail.source_staging
+  evidence: cloudtrail.build_evidence
+  checks: cloudtrail.required_checks
 routes:
   local_raw:
     input:
       engine: bento
+      framing: records-json
       config: repo://collector/configs/cloudtrail/local-records.yaml
       params:
         path: {type: path, required: true, env: BATZ_SOURCE_PATH}

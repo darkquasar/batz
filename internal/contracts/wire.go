@@ -152,9 +152,10 @@ type Parameter struct {
 	Env      string `json:"env" yaml:"env"`
 }
 type RouteInput struct {
-	Engine string               `json:"engine" yaml:"engine"`
-	Config string               `json:"config" yaml:"config"`
-	Params map[string]Parameter `json:"params" yaml:"params"`
+	Framing string               `json:"framing" yaml:"framing"`
+	Engine  string               `json:"engine" yaml:"engine"`
+	Config  string               `json:"config" yaml:"config"`
+	Params  map[string]Parameter `json:"params" yaml:"params"`
 }
 type RouteOutput struct {
 	Parsed struct {
@@ -184,7 +185,10 @@ type SourcePipeline struct {
 	Name          string `json:"name" yaml:"name"`
 	Version       int    `json:"version" yaml:"version"`
 	Normalization struct {
-		Project string `json:"project" yaml:"project"`
+		Project  string `json:"project" yaml:"project"`
+		Staging  string `json:"staging" yaml:"staging"`
+		Evidence string `json:"evidence" yaml:"evidence"`
+		Checks   string `json:"checks" yaml:"checks"`
 	} `json:"normalization" yaml:"normalization"`
 	Routes map[string]Route `json:"routes" yaml:"routes"`
 }
@@ -220,4 +224,27 @@ type ExplainReport struct {
 	Routes      []ExplainRoute         `json:"routes"`
 	Assets      map[string]string      `json:"assets"`
 	Diagnostics []Diagnostic           `json:"diagnostics"`
+}
+
+// ExecutionContract is the selected route's production-only identity. Example and
+// test metadata are deliberately absent; native SQLMesh owns model discovery.
+type ExecutionContract struct {
+	APIVersion string            `json:"apiVersion"`
+	Pipeline   string            `json:"pipeline"`
+	Version    int               `json:"version"`
+	Route      string            `json:"route"`
+	Framing    string            `json:"framing"`
+	Staging    string            `json:"staging"`
+	Evidence   string            `json:"evidence"`
+	Checks     string            `json:"checks"`
+	Outputs    map[string]string `json:"outputs"`
+}
+
+func (p SourcePipeline) Execution(route string) ExecutionContract {
+	r := p.Routes[route]
+	outputs := make(map[string]string, len(r.Output.Normalized.Models))
+	for k, v := range r.Output.Normalized.Models {
+		outputs[k] = v
+	}
+	return ExecutionContract{APIVersion: "batz-execution/v0alpha1", Pipeline: p.Name, Version: p.Version, Route: route, Framing: r.Input.Framing, Staging: p.Normalization.Staging, Evidence: p.Normalization.Evidence, Checks: p.Normalization.Checks, Outputs: outputs}
 }

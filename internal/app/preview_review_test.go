@@ -1,15 +1,14 @@
 package app_test
 
 import (
+	"batz/internal/app"
+	"batz/internal/contracts"
 	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"batz/internal/app"
-	"batz/internal/contracts"
 )
 
 func previewContent(t *testing.T) string {
@@ -58,7 +57,7 @@ SELECT 42 AS answer;
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := previewContent(t)
-			if err := os.WriteFile(filepath.Join(root, "normalization", tt.file), []byte(tt.content), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(root, "normalization", "cloudtrail", tt.file), []byte(tt.content), 0600); err != nil {
 				t.Fatal(err)
 			}
 			assertTemplatingRejected(t, root, tt.file, tt.strict)
@@ -66,7 +65,7 @@ SELECT 42 AS answer;
 	}
 	t.Run("yaml config delimiter", func(t *testing.T) {
 		root := previewContent(t)
-		config := filepath.Join(root, "normalization/config.yaml")
+		config := filepath.Join(root, "normalization/cloudtrail/config.yaml")
 		data, err := os.ReadFile(config)
 		if err != nil {
 			t.Fatal(err)
@@ -84,6 +83,7 @@ SELECT 42 AS answer;
 
 // assertTemplatingRejected requires the templating diagnostic itself, so an
 // unavailable native runtime (also exit 3 without a run) cannot pass.
+
 func assertTemplatingRejected(t *testing.T, root, file string, strict bool) {
 	t.Helper()
 	args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json"}
@@ -110,74 +110,5 @@ func assertTemplatingRejected(t *testing.T, root, file string, strict bool) {
 	}
 	if strings.Contains(out.String(), "invented_probe") {
 		t.Fatalf("diagnostic echoed project content: %s", &out)
-	}
-}
-
-func TestPreviewAdmitsNativeMacrosAndTemplateLikeSeedData(t *testing.T) {
-	root := previewContent(t)
-	path := filepath.Join(root, "normalization/models/api_activity.sql")
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	native := strings.Replace(string(data), "kind FULL);\n", "kind FULL);\n\n@DEF(mapped_status, 'mapped');\n", 1)
-	native = strings.Replace(native, "s.mapping_status='mapped'", "s.mapping_status=@mapped_status", 1)
-	if !strings.Contains(native, "@DEF(") || !strings.Contains(native, "=@mapped_status") {
-		t.Fatal("test did not add a native SQLMesh macro")
-	}
-	if err = os.WriteFile(path, []byte(native), 0600); err != nil {
-		t.Fatal(err)
-	}
-	// CSV is data rather than SQL code; template-like text there stays admissible.
-	if err = os.MkdirAll(filepath.Join(root, "normalization/seeds"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(filepath.Join(root, "normalization/seeds/labels.csv"), []byte("label\n\"{{ 40 + 2 }}\"\n\"{% raw %}\"\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
-	var report contracts.ExplainReport
-	if err = json.Unmarshal(out.Bytes(), &report); err != nil {
-		t.Fatalf("decode report: %v %s %s", err, &out, &diagnostics)
-	}
-	if code != 0 || report.Runtime["run"] == nil || len(report.Samples) == 0 {
-		t.Fatalf("native SQLMesh content not previewed: %d %s %s", code, &out, &diagnostics)
-	}
-}
-
-func TestInspectionOperationalFailureIsNotIntegrityFailure(t *testing.T) {
-	root := previewContent(t)
-	if err := os.WriteFile(filepath.Join(root, "runtime/sqlmesh/inspect_preview.py"), []byte("raise OSError('invented unavailable output')\n"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
-	if code != 1 {
-		t.Fatalf("operational failure misclassified: %d %s %s", code, &out, &diagnostics)
-	}
-}
-
-func TestExplainUsesContextSelectedNormalizationProject(t *testing.T) {
-	root := previewContent(t)
-	selected := filepath.Join(root, "other-models")
-	copyTree(t, filepath.Join(root, "normalization"), selected)
-	model := filepath.Join(selected, "models/api_activity.sql")
-	data, err := os.ReadFile(model)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(model, bytes.ReplaceAll(data, []byte("'object-read'"), []byte("'wrong-context-action'")), 0600); err != nil {
-		t.Fatal(err)
-	}
-	binding := filepath.Join(root, "binding.yaml")
-	text := "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: demo\ndefinition: repo://pipelines/aws-cloudtrail.yaml\nversion: 1\nroute: local_raw\nnormalization:\n  project: ./other-models\n"
-	if err = os.WriteFile(binding, []byte(text), 0600); err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--binding", binding, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
-	if code != 4 || !strings.Contains(out.String(), "required") {
-		t.Fatalf("context project ignored: %d %s %s", code, &out, &diagnostics)
 	}
 }

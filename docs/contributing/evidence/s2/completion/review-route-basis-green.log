@@ -1,8 +1,0 @@
-{"Time":"2026-10-29T17:02:20.305625+10:00","Action":"start","Package":"batz/internal/app"}
-{"Time":"2026-10-29T17:02:20.65694+10:00","Action":"run","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace"}
-{"Time":"2026-10-29T17:02:20.657009+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Output":"=== RUN   TestPreviewUsesAssetsFromTheExplicitWorkspace\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:02:24.960021+10:00","Action":"output","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Output":"--- PASS: TestPreviewUsesAssetsFromTheExplicitWorkspace (4.30s)\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:02:24.960041+10:00","Action":"pass","Package":"batz/internal/app","Test":"TestPreviewUsesAssetsFromTheExplicitWorkspace","Elapsed":4.3}
-{"Time":"2026-10-29T17:02:24.960278+10:00","Action":"output","Package":"batz/internal/app","Output":"PASS\n","OutputType":"frame"}
-{"Time":"2026-10-29T17:02:24.961503+10:00","Action":"output","Package":"batz/internal/app","Output":"ok  \tbatz/internal/app\t4.655s\n"}
-{"Time":"2026-10-29T17:02:24.961521+10:00","Action":"pass","Package":"batz/internal/app","Elapsed":4.656}

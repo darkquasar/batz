@@ -1,6 +1,0 @@
-=== RUN   TestTamperedCollectorRefusedBeforeWorkspaceMutation
-    dependencies_test.go:72: tampered collector must fail integrity preflight; exit=1 stderr=batz-collector failed: exit status 97 (log /private/var/folders/2t/q7xrz9zd3t36gthk6k4lzk1w0000gp/T/TestTamperedCollectorRefusedBeforeWorkspaceMutation1286761364/002/workspace/.batz/staging/d36ecbbb9428c52cc8461765feb58745/collector.log)
---- FAIL: TestTamperedCollectorRefusedBeforeWorkspaceMutation (0.36s)
-FAIL
-FAIL	batz/internal/app	0.760s
-FAIL

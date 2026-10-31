@@ -1,9 +1,0 @@
-PASS collection-receipt positive / unsupported version / unknown field
-PASS explain-report positive / unsupported version / unknown field
-PASS pipeline-binding positive / unsupported version / unknown field
-PASS published-inventory positive / unsupported version / unknown field
-PASS run-report positive / unsupported version / unknown field
-PASS source-pipeline positive / unsupported version / unknown field
-PASS 34 document schema cases; local links; diagram width; exact lock-file hashes
-Runtime package metadata: {'sqlmesh': '0.236.4', 'duckdb': '1.5.4', 'jsonschema': '4.25.1'}
-Scope: document/type checks only. No native pipeline behavior proven.

@@ -12,10 +12,12 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
 
+	"batz/collector/plugins"
 	"batz/internal/contracts"
 	pipeline "batz/internal/run"
 	"batz/internal/scratch"
@@ -23,9 +25,6 @@ import (
 
 func preview(root, definition, workspace string, manifest contracts.SourcePipeline, example contracts.Example, report *contracts.ExplainReport) (int, error) {
 	selectedRoute := manifest.Routes[example.Route]
-	if !isTracerModelSelection(selectedRoute.Output.Normalized.Models) {
-		return 3, fmt.Errorf("offline model adapter unavailable for this selection")
-	}
 	if err := verifyRuntime(root); err != nil {
 		var integrity *runtimeIntegrityError
 		if errors.As(err, &integrity) {
@@ -68,13 +67,11 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	if hex.EncodeToString(sum[:]) != example.SHA256 {
 		return 4, fmt.Errorf("example-integrity mismatch")
 	}
-	var document struct {
-		Records []json.RawMessage `json:"Records"`
+	records, err := plugins.SourceRecords(data, selectedRoute.Input.Framing)
+	if err != nil {
+		return 2, err
 	}
-	if err = json.Unmarshal(data, &document); err != nil || document.Records == nil {
-		return 2, fmt.Errorf("unsupported example shape")
-	}
-	if int64(len(document.Records)) > pipeline.Limits().Records {
+	if int64(len(records)) > pipeline.Limits().Records {
 		return 2, fmt.Errorf("example exceeds row budget")
 	}
 	if err = admitProject(models); err != nil {
@@ -111,7 +108,7 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	ctx, cancel := context.WithTimeout(signalCtx, 430*time.Second)
 	defer cancel()
 	python := filepath.Join(root, "runtime/.local/venv/bin/python")
-	if err = scratch.Qualify(ctx, profile, python, dir, filepath.Join(root, "fixtures/cloudtrail/api-read.json")); err != nil {
+	if err = scratch.Qualify(ctx, profile, python, dir, definition); err != nil {
 		return 3, err
 	}
 	// Configuration is snapshotted into the same read/write boundary.
@@ -123,7 +120,7 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	if err = os.WriteFile(config, configData, 0600); err != nil {
 		return 1, err
 	}
-	runReport, err := pipeline.Execute(ctx, pipeline.Request{Root: root, Workspace: filepath.Join(dir, "work"), Definition: definition, Route: example.Route, Source: fixture, Binding: "preview", NativeConfig: config, Project: copied, PrivateScratch: dir, SandboxProfile: profile})
+	runReport, err := pipeline.Execute(ctx, pipeline.Request{Contract: manifest.Execution(example.Route), Root: root, Workspace: filepath.Join(dir, "work"), Definition: definition, Route: example.Route, Source: fixture, Binding: "preview", NativeConfig: config, Project: copied, PrivateScratch: dir, SandboxProfile: profile})
 	report.Runtime["resources"] = runReport.Resources
 	report.Assets[example.Input] = example.SHA256
 	report.Runtime["run"] = runReport
@@ -142,7 +139,7 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 			return 1, e
 		}
 	}
-	request := map[string]any{"source": fixture, "catalog": *runReport.Catalog, "expectations": expected, "counts": runReport.Counts, "result": filepath.Join(dir, "result.json")}
+	request := map[string]any{"framing": selectedRoute.Input.Framing, "datasets": runReportDatasetNames(manifest.Execution(example.Route)), "source": fixture, "catalog": *runReport.Catalog, "expectations": expected, "counts": runReport.Counts, "result": filepath.Join(dir, "result.json")}
 	raw, err := json.Marshal(request)
 	if err != nil {
 		return 1, err
@@ -188,8 +185,14 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	return 0, nil
 }
 
-func isTracerModelSelection(models map[string]string) bool {
-	return len(models) == 1 && models["api_activity"] == "cloudtrail.api_activity"
+func runReportDatasetNames(contract contracts.ExecutionContract) []string {
+	names := []string{"parsed", "source_staging"}
+	outputs := make([]string, 0, len(contract.Outputs))
+	for name := range contract.Outputs {
+		outputs = append(outputs, name)
+	}
+	sort.Strings(outputs)
+	return append(names, outputs...)
 }
 
 type previewConnection struct {
@@ -246,6 +249,9 @@ var templateMarkers = [][]byte{
 }
 
 func admitProject(root string) error {
+	if err := validateProjectContent(root); err != nil {
+		return err
+	}
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -254,6 +260,13 @@ func admitProject(root string) error {
 			return fmt.Errorf("symlink in normalization content")
 		}
 		if entry.IsDir() {
+			return nil
+		}
+		relative, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if !contracts.ProductionProjectPath(filepath.ToSlash(relative)) {
 			return nil
 		}
 		switch filepath.Ext(path) {
@@ -299,6 +312,12 @@ func copyProject(source, target string) error {
 		dest := filepath.Join(target, relative)
 		if entry.Type()&os.ModeSymlink != 0 {
 			return fmt.Errorf("symlink in copied project")
+		}
+		if !contracts.ProductionProjectPath(filepath.ToSlash(relative)) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
 		}
 		if entry.IsDir() {
 			return os.MkdirAll(dest, 0700)

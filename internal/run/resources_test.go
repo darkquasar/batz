@@ -1,3 +1,5 @@
+//go:build batz_app
+
 package run
 
 import (
@@ -14,7 +16,7 @@ import (
 )
 
 // This helper is a real bounded process tree, not a simulated process inspector.
-func TestResourceProcessHelper(t *testing.T) {
+func TestAppResourceProcessHelper(t *testing.T) {
 	mode := os.Getenv("BATZ_RESOURCE_PROBE")
 	if mode == "" {
 		return
@@ -26,7 +28,7 @@ func TestResourceProcessHelper(t *testing.T) {
 			bytes[i] = 1
 		}
 		childMode := strings.Replace(mode, "parent", "leaf", 1)
-		cmd := exec.Command(os.Args[0], "-test.run=^TestResourceProcessHelper$")
+		cmd := exec.Command(os.Args[0], "-test.run=^TestAppResourceProcessHelper$")
 		cmd.Env = append(os.Environ(), "BATZ_RESOURCE_PROBE="+childMode)
 		cmd.ExtraFiles = []*os.File{os.NewFile(3, "owner")}
 		if err := cmd.Run(); err != nil {
@@ -75,11 +77,11 @@ func resourceLease(t *testing.T, dir string) *os.File {
 	t.Cleanup(func() { f.Close() })
 	return f
 }
-func TestRAMMeasurementIncludesDescendantsWithoutCutoff(t *testing.T) {
+func TestAppRAMMeasurementIncludesDescendantsWithoutCutoff(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	usage, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{1 << 30, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=ram-parent"}, os.Args[0], "-test.run=^TestResourceProcessHelper$")
+	usage, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{1 << 30, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=ram-parent"}, os.Args[0], "-test.run=^TestAppResourceProcessHelper$")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,11 +90,11 @@ func TestRAMMeasurementIncludesDescendantsWithoutCutoff(t *testing.T) {
 	}
 	t.Logf("tree RSS samples=%d average=%d peak=%d", usage.Samples, *usage.AverageRSSBytes, *usage.PeakRSSBytes)
 }
-func TestScratchWatchdogStopsAndSettlesActualDescendants(t *testing.T) {
+func TestAppScratchWatchdogStopsAndSettlesActualDescendants(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	usage, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{64 << 10, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=disk-parent"}, os.Args[0], "-test.run=^TestResourceProcessHelper$")
+	usage, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{64 << 10, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=disk-parent"}, os.Args[0], "-test.run=^TestAppResourceProcessHelper$")
 	if err == nil || !strings.Contains(err.Error(), "scratch-limit") {
 		t.Fatalf("scratch bound was not enforced: %+v %v", usage, err)
 	}
@@ -127,11 +129,11 @@ func TestScratchWatchdogStopsAndSettlesActualDescendants(t *testing.T) {
 	}
 	t.Logf("writer stopped at %d bytes for %d-byte threshold", info.Size(), 64<<10)
 }
-func TestChildDeadlineRemainsOperationalFailure(t *testing.T) {
+func TestAppChildDeadlineRemainsOperationalFailure(t *testing.T) {
 	dir := t.TempDir()
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
-	_, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{1 << 30, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=sleep"}, os.Args[0], "-test.run=^TestResourceProcessHelper$")
+	_, err := child(ctx, resourceLease(t, dir), dir, filepath.Join(dir, "child.log"), childBudget{1 << 30, []string{dir}}, []string{"BATZ_RESOURCE_PROBE=sleep"}, os.Args[0], "-test.run=^TestAppResourceProcessHelper$")
 	if err == nil || ctx.Err() != context.DeadlineExceeded {
 		t.Fatal(fmt.Sprint("deadline not enforced: ", err))
 	}

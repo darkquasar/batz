@@ -1,6 +1,0 @@
-=== RUN   TestSavedBindingRunsNativePipeline
-    explain_stages_test.go:110: saved native run failed: 2  {"category":"invalid-input","code":"invalid-field","field":"","source":"cli","message":"unexpected positional arguments"}
---- FAIL: TestSavedBindingRunsNativePipeline (0.00s)
-FAIL
-FAIL	batz/internal/app	0.286s
-FAIL

@@ -1,6 +1,0 @@
-=== RUN   TestSameIntervalNewHistoricalMembershipIsEvaluated
-    native_test.go:107: report does not describe committed membership: inputs=1 counts=[{parse 1 0 0 0} {normalize 2 0 0 0}]
---- FAIL: TestSameIntervalNewHistoricalMembershipIsEvaluated (6.22s)
-FAIL
-FAIL	batz/internal/app	6.506s
-FAIL

@@ -17,6 +17,9 @@ func preflightDiagnostic(out io.Writer, exit int, err error) int {
 	case 3:
 		d.Category = "incomplete-capability"
 		d.Code = "missing-asset"
+	case 130:
+		d.Category = "cancellation"
+		d.Code = "cancelled"
 	case 4:
 		d.Category = "integrity"
 		d.Code = "dependency-integrity"

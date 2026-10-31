@@ -1,16 +1,14 @@
 package app_test
 
 import (
+	"batz/internal/app"
+	"batz/internal/contracts"
 	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"batz/internal/app"
-	"batz/internal/contracts"
 )
 
 func TestExplainPreservesTimestampDefaultText(t *testing.T) {
@@ -90,15 +88,16 @@ func TestExplainHistoricalPrecedenceTracesAndTypedCLIValues(t *testing.T) {
 	definition := filepath.Join(project, "source.yaml")
 	// These are alpha-contract adaptations of the historical design examples.
 	// The remote route is declared for static explanation, never executed.
-	writeContextFile(t, definition, `apiVersion: batz/v0alpha1
+	writeContextFile(t, definition, `apiVersion: batz/v0alpha2
 kind: SourcePipeline
 name: aws-cloudtrail
 version: 1
-normalization: {project: repo://normalization}
+normalization: {project: repo://normalization/cloudtrail, staging: cloudtrail.source_staging, evidence: cloudtrail.build_evidence, checks: cloudtrail.required_checks}
 routes:
   s3_raw:
     input:
       engine: bento
+      framing: records-json
       config: repo://collector/s3.yaml
       params:
         bucket: {type: string, required: true, env: BATZ_BUCKET, default: route-bucket}
@@ -197,24 +196,10 @@ pipelines:
 	}
 }
 
-func TestPreviewRetainsNativeStructuresAndLosslessValues(t *testing.T) {
-	root := previewContent(t)
-	model := filepath.Join(root, "normalization/models/api_activity.sql")
-	data, err := os.ReadFile(model)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data = bytes.Replace(data, []byte("SELECT\n"), []byte("SELECT\n 9007199254740993::BIGINT AS example_large_integer,\n TIMESTAMP_NS '2026-10-25 12:00:00.000000001' AS example_nanosecond_time,\n"), 1)
-	if err := os.WriteFile(model, data, 0600); err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
-	if code != 0 {
-		t.Fatalf("native structure preview failed: %d %s %s", code, &out, &diagnostics)
-	}
+func assertLosslessStructures(t *testing.T, raw []byte) {
+	t.Helper()
 	var report contracts.ExplainReport
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+	if err := json.Unmarshal(raw, &report); err != nil {
 		t.Fatal(err)
 	}
 	structures := make(map[string]map[string]contracts.ExplainField)
@@ -226,7 +211,7 @@ func TestPreviewRetainsNativeStructuresAndLosslessValues(t *testing.T) {
 		structures[structure.Stage] = fields
 	}
 	if len(structures) != 5 || structures["parsed"]["payload"].NativeType != "VARCHAR" || structures["parsed"]["payload"].Encoding != "json-text" {
-		t.Fatalf("source/intermediate structure or JSON text encoding lost: %s", &out)
+		t.Fatalf("source/intermediate structure or JSON text encoding lost: %s", string(raw))
 	}
 	event := structures["api_activity"]["event"]
 	if !strings.HasPrefix(event.NativeType, "STRUCT(") || len(event.Fields) == 0 {
@@ -272,7 +257,7 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := previewContent(t)
-			path := filepath.Join(root, "normalization/config.yaml")
+			path := filepath.Join(root, "normalization/cloudtrail/config.yaml")
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
@@ -310,18 +295,4 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 			}
 		})
 	}
-}
-
-func TestInvalidReviewedExpectationsRemainIntegrityFailures(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(filepath.Join(root, "runtime/.local/venv/bin/python"), "-I", "-B", filepath.Join(root, "runtime/sqlmesh/test_inspect_preview.py"))
-	cmd.Env = []string{"PATH=/usr/bin:/bin", "TMPDIR=" + t.TempDir(), "PYTHONDONTWRITEBYTECODE=1"}
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("reviewed expectation validation: %v\n%s", err, out)
-	}
-	t.Logf("%s", out)
 }

@@ -1,6 +1,0 @@
-=== RUN   TestPathsRetainDeclaringOriginAcrossLayers
-    resolve_test.go:21: lost declaring path: models
---- FAIL: TestPathsRetainDeclaringOriginAcrossLayers (0.00s)
-FAIL
-FAIL	batz/internal/config	0.396s
-FAIL

@@ -151,31 +151,23 @@ func explain(args []string, stdout, stderr io.Writer) int {
 				{id: "decoded", kind: "native-decoding", inputs: []string{"source"}, native: []string{r.Config}, outputs: []string{"parsed"}},
 				{id: "parsed", kind: "parsed-publication", inputs: []string{"decoded"}, native: []string{r.Config}, outputs: []string{"normalization"}},
 			}
-			if isTracerModelSelection(r.Models) {
-				specs[2].outputs = []string{"source_staging"}
-				specs = append(specs,
-					stageSpec{id: "source_staging", kind: "sql-staging", inputs: []string{"parsed"}, native: []string{pipeline.Normalization.Project + "/models/source_staging.sql"}, outputs: []string{"api_activity"}},
-					stageSpec{id: "api_activity", kind: "normalized-output", inputs: []string{"source_staging"}, native: []string{pipeline.Normalization.Project + "/models/api_activity.sql"}, outputs: []string{"reader"}},
-				)
+			specs[2].outputs = []string{"source_staging"}
+			outputs := make([]string, 0, len(r.Models))
+			for name := range r.Models {
+				outputs = append(outputs, name)
+			}
+			sort.Strings(outputs)
+			specs = append(specs, stageSpec{id: "source_staging", kind: "sql-staging", inputs: []string{"parsed"}, native: []string{}, outputs: outputs})
+			for _, name := range outputs {
+				specs = append(specs, stageSpec{id: name, kind: "normalized-output", inputs: []string{"source_staging"}, native: []string{}, outputs: []string{"reader"}})
 			}
 			for _, stage := range specs {
-				report.Stages = append(report.Stages, contracts.ExplainStage{ID: r.Name + "/" + stage.id, Route: r.Name, Kind: stage.kind, Inputs: stage.inputs, Native: stage.native, Outputs: stage.outputs, Basis: "declared", Reason: "Declared local tracer boundaries; no sample executed"})
+				report.Stages = append(report.Stages, contracts.ExplainStage{ID: r.Name + "/" + stage.id, Route: r.Name, Kind: stage.kind, Inputs: stage.inputs, Native: stage.native, Outputs: stage.outputs, Basis: "declared", Reason: "Declared model contract boundaries; native graph/structures unavailable without execution"})
 				for _, native := range stage.native {
 					asset(native, resolve(native, *project, filepath.Dir(definition), selection.Workspace))
 				}
 			}
-			if !isTracerModelSelection(r.Models) {
-				outputs := make([]string, 0, len(r.Models))
-				for name := range r.Models {
-					outputs = append(outputs, name)
-				}
-				sort.Strings(outputs)
-				report.Stages = append(report.Stages, contracts.ExplainStage{ID: r.Name + "/normalization", Route: r.Name, Kind: "sql-normalization", Inputs: []string{"parsed"}, Native: []string{}, Outputs: outputs, Basis: "unavailable", Reason: "Native dependencies and topology require a qualified model adapter"})
-				for _, name := range outputs {
-					report.Stages = append(report.Stages, contracts.ExplainStage{ID: r.Name + "/" + name, Route: r.Name, Kind: "normalized-output", Inputs: []string{"normalization"}, Native: []string{}, Outputs: []string{name}, Basis: "unavailable", Reason: "Declared model " + r.Models[name] + "; no qualified topology or projection adapter"})
-				}
-				report.Diagnostics = append(report.Diagnostics, contracts.Diagnostic{Category: "incomplete-capability", Code: "unavailable-topology", Source: r.Name, Message: "Declared outputs retained; native model topology is unavailable"})
-			}
+
 		}
 	}
 	previewCode := 0

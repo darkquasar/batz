@@ -1,0 +1,140 @@
+name: Selected local contracts
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+# Provisioned outside the checkout, mounted read-only to ephemeral jobs.
+# Activation requires a qualified host; this workflow installs nothing.
+env:
+  BATZ_TOOLCHAIN_ROOT: /opt/batz/toolchain
+  # Each ephemeral runner has its own prewarmed writable cache volume.
+  GOCACHE: /opt/batz/job-cache/gocache
+  BATZ_DIFF_BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  select:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    outputs:
+      fast: ${{ steps.jobs.outputs.fast }}
+      app: ${{ steps.jobs.outputs.app }}
+      models: ${{ steps.jobs.outputs.models }}
+      e2e: ${{ steps.jobs.outputs.e2e }}
+      docs: ${{ steps.jobs.outputs.docs }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - id: jobs
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: |
+          ci/select "$BASE" HEAD > "$RUNNER_TEMP/batz-selection.json"
+          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I - <<'PY'
+          import json, os
+          from pathlib import Path
+          selected = json.loads((Path(os.environ["RUNNER_TEMP"]) / "batz-selection.json").read_text())
+          print(json.dumps(selected, indent=2))
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              for name in ("fast", "app", "models", "e2e", "docs"):
+                  output.write(name + "=" + json.dumps(selected[name]) + "\n")
+          PY
+
+  fast:
+    needs: select
+    if: needs.select.outputs.fast == 'true'
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - run: ci/test fast
+
+  shared-runtime:
+    needs: select
+    if: needs.select.outputs.app == 'true'
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - run: ci/test app
+
+  models:
+    needs: select
+    if: needs.select.outputs.models != '[]'
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    strategy:
+      fail-fast: false
+      matrix:
+        pipeline: ${{ fromJSON(needs.select.outputs.models) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - env:
+          PIPELINE: ${{ matrix.pipeline }}
+        run: ci/test models "$PIPELINE"
+
+  e2e:
+    needs: select
+    if: needs.select.outputs.e2e != '[]'
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    strategy:
+      fail-fast: false
+      matrix:
+        pipeline: ${{ fromJSON(needs.select.outputs.e2e) }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - env:
+          PIPELINE: ${{ matrix.pipeline }}
+        run: ci/test e2e "$PIPELINE"
+
+  docs:
+    needs: select
+    if: needs.select.outputs.docs == 'true'
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
+        run: git diff --check "$(git merge-base "$BASE" HEAD)" HEAD
+
+  # Configure this as the required PR check when qualified runners are activated.
+  gate:
+    needs: [select, fast, shared-runtime, models, e2e, docs]
+    if: always()
+    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    steps:
+      - name: Require successful selection and selected checks
+        env:
+          SELECT_RESULT: ${{ needs.select.result }}
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          test "$SELECT_RESULT" = success
+          case ",$RESULTS," in
+            *,failure,*|*,cancelled,*) exit 1 ;;
+          esac

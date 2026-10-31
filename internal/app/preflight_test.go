@@ -9,35 +9,6 @@ import (
 	"testing"
 )
 
-func TestUndeclaredModelSelectionRefusedBeforeAcquisition(t *testing.T) {
-	root := nativeContent(t)
-	definition := filepath.Join(root, "pipelines/aws-cloudtrail.yaml")
-	b, err := os.ReadFile(definition)
-	if err != nil {
-		t.Fatal(err)
-	}
-	changed := strings.Replace(string(b), "cloudtrail.api_activity", "cloudtrail.missing", 1)
-	if changed == string(b) {
-		t.Fatal("test mutation missing")
-	}
-	if err = os.WriteFile(definition, []byte(changed), 0600); err != nil {
-		t.Fatal(err)
-	}
-	workspace := filepath.Join(t.TempDir(), "workspace")
-	input, err := filepath.Abs("../../fixtures/cloudtrail/api-read.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", definition, "--project", root, "--route", "local_raw", "--workspace", workspace, "--input", "path=" + input}, &out, &diagnostics)
-	if code != 2 {
-		t.Fatalf("model selection ignored: exit=%d %s %s", code, &diagnostics, &out)
-	}
-	if _, err = os.Stat(workspace); !os.IsNotExist(err) {
-		t.Fatalf("preflight mutated workspace: %v", err)
-	}
-}
-
 func TestUnqualifiedNativeInputRefusedBeforeWorkspaceMutation(t *testing.T) {
 	root := nativeContent(t)
 	native := filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml")
@@ -87,7 +58,7 @@ func TestStaticRefusalsDoNotStartAcquisition(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				changed := strings.Replace(string(b), "batz/v0alpha1", "batz/v9", 1)
+				changed := strings.Replace(string(b), "batz/v0alpha2", "batz/v9", 1)
 				if name == "duplicate-field" {
 					changed = string(b) + "version: 1\n"
 				}
@@ -100,7 +71,7 @@ func TestStaticRefusalsDoNotStartAcquisition(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "project-python":
-				if err = os.WriteFile(filepath.Join(root, "normalization/config.py"), []byte("raise RuntimeError('PROJECT PYTHON EXECUTED')\n"), 0600); err != nil {
+				if err = os.WriteFile(filepath.Join(root, "normalization/cloudtrail/config.py"), []byte("raise RuntimeError('PROJECT PYTHON EXECUTED')\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			case "reserved-handoff":

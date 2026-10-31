@@ -1,8 +1,0 @@
-=== RUN   TestExplainStagesWithoutExecutingRuntime
---- PASS: TestExplainStagesWithoutExecutingRuntime (0.00s)
-=== RUN   TestSavedBindingEnrichesExplainWithOrigin
---- PASS: TestSavedBindingEnrichesExplainWithOrigin (0.00s)
-=== RUN   TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime
---- PASS: TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime (0.00s)
-PASS
-ok  	batz/internal/app	0.413s
