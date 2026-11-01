@@ -11,7 +11,9 @@ from pathlib import Path
 import sys
 
 import duckdb
-from sqlmesh import Context
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from catalog import load_context, execution_scope, scope_record, admitted_files, configure_private
 
 
 class RequiredCheck(ValueError):
@@ -53,7 +55,7 @@ def validate_contract(context, contract):
         raise RequiredCheck("missing or duplicate required model references")
     for name in names:
         context.get_model(name, raise_if_missing=True)
-    return names
+    return execution_scope(context, contract, contract["pipeline"])
 
 
 # Versioned minimum common profile. Optional canonical fields, when supplied,
@@ -171,14 +173,11 @@ def main(request_path):
     project = Path(request["project"])
     state = Path(request["model_state"])
     output = Path(request["output"])
-    state.mkdir(parents=True, exist_ok=True)
+    admitted_files(project)
+    state.mkdir(parents=True, exist_ok=False)
+    configure_private(project, state)
     output.mkdir(parents=True, exist_ok=False)
     working = state / "working.duckdb"
-    config = json.loads((project / "config.yaml").read_text())
-    gateway = config["gateways"]["local"]
-    gateway["connection"]["database"] = str(working)
-    gateway["state_connection"]["database"] = str(state / "sqlmesh-state.duckdb")
-    (project / "config.yaml").write_text(json.dumps(config, indent=2) + "\n")
     settings = {"threads": 1,
                 "autoinstall_known_extensions": "false",
                 "autoload_known_extensions": "false"}
@@ -212,15 +211,17 @@ def main(request_path):
         "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM batz_input.parsed").fetchall())
     connection.close()
 
-    context = Context(paths=[str(project)])
-    validate_contract(context, request["contract"])
-    # Preserve the qualified apply-then-restate semantics, sharing one Context.
-    # No combined-plan optimization is assumed without equivalence evidence.
+    context = load_context("runtime", paths=[str(project)])
+    selected = validate_contract(context, request["contract"])
+    if request.get("scope", {}).get("models") and selected != request["scope"]["models"]:
+        context.close()
+        raise RequiredCheck("execution scope differs from admitted discovery")
+    # Fresh attempt state has no intervals or prior environments to reuse. A
+    # single selected plan evaluates every FULL dependency against exact current
+    # membership; nonce and membership checks below independently prove freshness.
     commands = [{"skip_tests": True, "no_prompts": True, "auto_apply": True,
-                 "execution_time": "2026-01-03"},
-                {"skip_tests": True, "no_prompts": True, "auto_apply": True,
-                 "execution_time": "2026-01-03", "restate_models": ["*"],
-                 "start": "2026-01-01", "end": "2026-01-02"}]
+                 "execution_time": "2026-01-03", "select_models": selected,
+                 "backfill_models": selected}]
     datasets = []
     try:
         for command in commands:
@@ -304,10 +305,23 @@ if __name__ == "__main__":
     try:
         request = json.loads(Path(sys.argv[1]).read_text())
         if request.get("validate_only"):
-
-            context = Context(paths=[request["project"]])
+            files = admitted_files(Path(request["project"]))
+            # Use an in-memory override so the hashed admitted config stays exact.
+            from sqlmesh.core.config import Config
+            from ruamel.yaml import YAML
+            config = Config(**YAML(typ="safe").load((Path(request["project"])/"config.yaml").read_text()))
+            gateway = config.gateways["local"]
+            gateway.connection.database = str(Path(request["project"]).parent / "working.duckdb")
+            gateway.state_connection.database = str(Path(request["project"]).parent / "state.duckdb")
+            context = load_context("discovery", paths=[request["project"]], config=config, load_state=False)
             try:
-                validate_contract(context, request["contract"])
+                selected = validate_contract(context, request["contract"])
+                record = scope_record(context, request["contract"], files, selected)
+                Path(request["result"]).write_text(json.dumps(record, sort_keys=True))
+            except ValueError as error:
+                if str(error).startswith("unsupported-input-scope:"):
+                    Path(request["result"]).write_text(json.dumps({"error": "unsupported-input-scope"}))
+                raise
             finally:
                 context.close()
         else:

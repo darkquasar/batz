@@ -248,15 +248,15 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return diagnostic(4, err.Error())
 	}
-	// Admission excludes contributor metadata from execution. Python and
-	// symlinks are refused even outside the production snapshot.
+	// Admit only native loader inputs before creating a private snapshot.
 	err = validateProjectContent(models)
 	if err != nil {
 		return diagnostic(2, err.Error())
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	if err := validateModelReferences(ctx, *project, models, manifest.Execution(*route)); err != nil {
+	scopedProject, scope, cleanup, err := validateModelReferences(ctx, *project, models, manifest.Execution(*route))
+	if err != nil {
 		code := 2
 		if errors.Is(err, context.Canceled) {
 			code = 130
@@ -266,6 +266,8 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 		}
 		return diagnostic(code, err.Error())
 	}
+	defer cleanup()
+	models = scopedProject
 	if *binding == "" {
 		if modelsOnly {
 			return diagnostic(2, "retry requires an existing binding ID")
@@ -276,7 +278,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if !regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$").MatchString(*binding) {
 		return diagnostic(2, "invalid binding ID")
 	}
-	report, err := pipeline.Execute(ctx, pipeline.Request{Contract: manifest.Execution(*route), CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict, Retry: modelsOnly, RetryRun: contracts.RunID(*retryRun), Resolution: selection.Origins})
+	report, err := pipeline.Execute(ctx, pipeline.Request{Scope: scope, Contract: manifest.Execution(*route), CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict, Retry: modelsOnly, RetryRun: contracts.RunID(*retryRun), Resolution: selection.Origins})
 	report.Resolution = selection.Origins
 	if e := json.NewEncoder(stdout).Encode(report); e != nil {
 		return diagnostic(1, e.Error())

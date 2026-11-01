@@ -10,13 +10,13 @@ brief overshoot is possible. See the [owner decision](../contracts/s1-macos-budg
 From the app checkout, after the project-local tools have been prepared:
 
 ```sh
-runtime/.local/batz explain pipelines/aws-cloudtrail.yaml
-runtime/.local/batz run pipelines/aws-cloudtrail.yaml \
+runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml
+runtime/.local/batz run pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
-  --binding-id demo --input path=repo://fixtures/cloudtrail/api-read.json
+  --binding-id demo --input path=repo://pipelines/aws-cloudtrail/fixtures/api-read.json
 ```
 
-`repo://fixtures/...` resolves inside this content checkout. `fixtures` contains
+`repo://pipelines/aws-cloudtrail/fixtures/...` resolves inside this checkout. The bundle contains
 synthetic test data; another explicit regular file path can be selected. Execution
 requires an explicit workspace. Reusing `demo` retains its prior parsed membership;
 S1 rebuilds all of it. Reliable skip/replay/reconciliation is later S4 work.
@@ -58,3 +58,8 @@ Default run exit is zero for checked publication, including record-level partial
 `--strict` returns 6 for published partial and keeps that revision. Invalid input,
 missing capability, integrity failure and busy ownership have distinct nonzero
 exits. A native/model failure cannot replace the prior normalized pointer.
+
+Start with a fresh workspace for the shared root catalog; old development
+workspaces and former separate native projects are not supported. Follow
+`pipelines/aws-cloudtrail/pipeline.yaml` to its `input/` and `fixtures/`, then
+`models/aws-cloudtrail/` and `tests/aws-cloudtrail/` for native SQL and expectations.

@@ -106,7 +106,7 @@ func recoveryRequest(t *testing.T) Request {
 		t.Fatal(err)
 	}
 	base := filepath.Join(root, "internal/app/testdata/synthetic")
-	return Request{Contract: fixtureContract(t, root), Root: root, Workspace: t.TempDir(), Definition: filepath.Join(base, "pipeline.yaml"), Route: "local_raw", Source: source, Binding: "demo", NativeConfig: filepath.Join(base, "collector.yaml"), Project: filepath.Join(base, "normalization")}
+	return Request{Contract: fixtureContract(t, root), Root: root, Workspace: t.TempDir(), Definition: filepath.Join(base, "pipeline.yaml"), Route: "local_raw", Source: source, Binding: "demo", NativeConfig: filepath.Join(base, "collector.yaml"), Project: root}
 
 }
 
@@ -310,7 +310,7 @@ func recoveryContent(t *testing.T) string {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	for _, name := range []string{"internal/app/testdata/synthetic", "runtime/sqlmesh"} {
+	for _, name := range []string{"internal/app/testdata/synthetic", "runtime/sqlmesh", "config.yaml", "models/synthetic-jsonl"} {
 		err := filepath.WalkDir(filepath.Join(source, name), func(path string, entry os.DirEntry, e error) error {
 			if e != nil {
 				return e
@@ -325,6 +325,9 @@ func recoveryContent(t *testing.T) string {
 			}
 			data, e := os.ReadFile(path)
 			if e != nil {
+				return e
+			}
+			if e := os.MkdirAll(filepath.Dir(target), 0700); e != nil {
 				return e
 			}
 			return os.WriteFile(target, data, 0600)

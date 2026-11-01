@@ -3,7 +3,7 @@ kind: SourcePipeline
 name: synthetic-jsonl
 version: 1
 normalization:
-  project: normalization
+  project: repo://.
   staging: probe.records
   evidence: probe.evaluation
   checks: probe.required_checks

@@ -29,13 +29,21 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	if e != nil {
 		return report, e
 	}
-	for name, path := range map[string]string{"collector-config": req.NativeConfig, "runtime-lock": filepath.Join(req.Root, "runtime/dependencies.lock.json"), "model-runner": filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), "coordinator": executable} {
+	for name, path := range map[string]string{"collector-config": req.NativeConfig, "runtime-lock": filepath.Join(req.Root, "runtime/dependencies.lock.json"), "model-runner": filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), "model-catalog": filepath.Join(req.Root, "runtime/sqlmesh/catalog.py"), "coordinator": executable} {
 		ref, e := fileRef(req.Root, path, 0)
 		if e != nil {
 			return report, e
 		}
 		content[name] = ref.SHA256
 	}
+	for name, path := range req.Scope.Sources {
+		digest, ok := content[path]
+		if !ok {
+			return report, failure(4, "integrity", errors.New("discovered source missing from execution snapshot"))
+		}
+		content["model:"+name] = digest
+	}
+	content["execution-scope"] = hash(encode(req.Scope))
 	content["pipeline"] = hash(encode(req.Contract))
 	report.Content = content
 	if req.Retry && priorNormalized.Valid {
@@ -67,12 +75,12 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	}
 	revision := contracts.RevisionID(id())
 	nonce := id()
-	bindingHash := hash([]byte(req.Binding))
+	modelState := filepath.Join(attempt, "model-state")
 	output := filepath.Join(artifact, "normalized", string(revision))
 	if e = os.MkdirAll(filepath.Dir(output), 0700); e != nil {
 		return report, e
 	}
-	buildRequest := map[string]any{"contract": req.Contract, "artifact_root": artifact, "project": filepath.Join(attempt, "project"), "model_state": filepath.Join(artifact, "models", bindingHash), "output": output, "members": inventory.members, "input_revision": inventory.revision, "input_digest": inventory.digest, "attempt_id": report.Identity.Attempt, "evaluation_nonce": nonce, "binding_id": req.Binding, "revision": revision}
+	buildRequest := map[string]any{"scope": req.Scope, "contract": req.Contract, "artifact_root": artifact, "project": filepath.Join(attempt, "project"), "model_state": modelState, "output": output, "members": inventory.members, "input_revision": inventory.revision, "input_digest": inventory.digest, "attempt_id": report.Identity.Attempt, "evaluation_nonce": nonce, "binding_id": req.Binding, "revision": revision}
 	requestPath := filepath.Join(attempt, "request.json")
 	if e = writeJSON(requestPath, buildRequest); e != nil {
 		return report, e
@@ -83,9 +91,15 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	}
 	report.Outcome = "normalization-failed"
 	modelCtx, modelCancel := context.WithTimeout(ctx, time.Duration(limits.ModelSeconds)*time.Second)
-	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "models", bindingHash), filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
+	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
 	report.Resources["model"] = modelUsage
 	modelCancel()
+	// SQLMesh state is disposable once its process group has stopped. Preserve
+	// it if settlement failed; logs and requests remain available in all cases.
+	var unsettled unsettledProcessError
+	if !errors.As(e, &unsettled) {
+		e = errors.Join(e, os.RemoveAll(modelState))
+	}
 	if e != nil {
 		return report, modelFailure(e)
 	}

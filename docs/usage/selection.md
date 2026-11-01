@@ -8,7 +8,7 @@ explicit selection for execution.
 ```sh
 runtime/.local/batz run --binding /path/binding.yaml --project . --workspace /tmp/case
 runtime/.local/batz run --case /path/case.yaml --binding-id cloudtrail --project .
-runtime/.local/batz explain pipelines/aws-cloudtrail.yaml --binding /path/binding.yaml --format json
+runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --binding /path/binding.yaml --format json
 ```
 
 A saved binding is a versioned closed document:
@@ -18,11 +18,11 @@ apiVersion: batz/v0alpha1
 kind: PipelineBinding
 id: cloudtrail
 workspace: /tmp/case
-definition: repo://pipelines/aws-cloudtrail.yaml
+definition: repo://pipelines/aws-cloudtrail/pipeline.yaml
 version: 1
 route: local_raw
 input:
-  path: repo://fixtures/cloudtrail/api-read.json
+  path: repo://pipelines/aws-cloudtrail/fixtures/api-read.json
 ```
 
 A Case has apiVersion, kind: Case, id, optional workspace and a pipelines list

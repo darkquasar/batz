@@ -13,7 +13,7 @@ import (
 
 func runFixture(t *testing.T, root, workspace, input string, extra ...string) contracts.RunReport {
 	t.Helper()
-	args := []string{"run", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}
+	args := []string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}
 	args = append(args, extra...)
 	var out, diagnostics bytes.Buffer
 	code := app.Execute(args, &out, &diagnostics)
@@ -36,7 +36,7 @@ func runFixture(t *testing.T, root, workspace, input string, extra ...string) co
 
 func sourceRecords(t *testing.T) map[string]any {
 	t.Helper()
-	b, err := os.ReadFile("../../fixtures/cloudtrail/api-read.json")
+	b, err := os.ReadFile("../../pipelines/aws-cloudtrail/fixtures/api-read.json")
 	if err != nil {
 		t.Fatal(err)
 	}

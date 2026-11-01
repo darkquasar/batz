@@ -33,6 +33,7 @@ jobs:
       fast: ${{ steps.jobs.outputs.fast }}
       app: ${{ steps.jobs.outputs.app }}
       models: ${{ steps.jobs.outputs.models }}
+      adapters: ${{ steps.jobs.outputs.adapters }}
       e2e: ${{ steps.jobs.outputs.e2e }}
       docs: ${{ steps.jobs.outputs.docs }}
     steps:
@@ -55,7 +56,7 @@ jobs:
           selected = json.loads((Path(os.environ["RUNNER_TEMP"]) / "batz-selection.json").read_text())
           print(json.dumps(selected, indent=2))
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-              for name in ("fast", "app", "models", "e2e", "docs"):
+              for name in ("fast", "app", "models", "adapters", "e2e", "docs"):
                   output.write(name + "=" + json.dumps(selected[name]) + "\n")
           PY
 
@@ -92,10 +93,30 @@ jobs:
     if: needs.select.outputs.models != '[]'
     runs-on: macos-15
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+      - uses: ./.github/actions/prepare-macos
+      - env:
+          PIPELINES: ${{ needs.select.outputs.models }}
+        run: |
+          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I - <<'PYCODE'
+          import json, os, subprocess
+          subprocess.run(['ci/test', 'models', '--mode', 'native', *json.loads(os.environ['PIPELINES'])], check=True)
+          PYCODE
+
+  adapters:
+    needs: select
+    if: needs.select.outputs.adapters != '[]'
+    runs-on: macos-15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        pipeline: ${{ fromJSON(needs.select.outputs.models) }}
+        pipeline: ${{ fromJSON(needs.select.outputs.adapters) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -105,7 +126,7 @@ jobs:
       - uses: ./.github/actions/prepare-macos
       - env:
           PIPELINE: ${{ matrix.pipeline }}
-        run: ci/test models "$PIPELINE"
+        run: ci/test models "$PIPELINE" --mode adapters
 
   e2e:
     needs: select
@@ -144,7 +165,7 @@ jobs:
 
   # Require this check after hosted-run evidence is accepted.
   gate:
-    needs: [select, fast, shared-runtime, models, e2e, docs]
+    needs: [select, fast, shared-runtime, models, adapters, e2e, docs]
     if: always()
     runs-on: macos-15
     timeout-minutes: 20

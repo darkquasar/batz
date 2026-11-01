@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -135,66 +136,105 @@ func loadPipeline(path string) (contracts.SourcePipeline, error) {
 
 // Native discovery validates IDs before acquisition. It runs on a private copy,
 // so SQLMesh logs/cache and working/state files never touch contributor content.
-func validateModelReferences(parent context.Context, root, project string, contract contracts.ExecutionContract) error {
+func validateModelReferences(parent context.Context, root, project string, contract contracts.ExecutionContract) (string, contracts.NativeScope, func(), error) {
 	dir, err := os.MkdirTemp("", "batz-model-preflight-")
 	if err != nil {
-		return err
+		return "", contracts.NativeScope{}, func() {}, err
 	}
-	defer os.RemoveAll(dir)
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	var scope contracts.NativeScope
 	copied := filepath.Join(dir, "project")
-	if err := copyProject(project, copied); err != nil {
-		return err
+	if err = copyProject(project, copied); err == nil {
+		scope, err = inspectModelScope(parent, root, copied, dir, "", contract)
 	}
-	raw, err := json.Marshal(map[string]any{"validate_only": true, "project": copied, "contract": contract})
 	if err != nil {
-		return err
+		cleanup()
+		return "", contracts.NativeScope{}, func() {}, err
 	}
-	request := filepath.Join(dir, "request.json")
-	if err := os.WriteFile(request, raw, 0600); err != nil {
-		return err
+	return copied, scope, cleanup, nil
+}
+
+// The bridge may select only files already admitted into this immutable copy.
+// Discovery output never authorizes reads from another root.
+func inspectModelScope(parent context.Context, root, project, scratch, profile string, contract contracts.ExecutionContract) (contracts.NativeScope, error) {
+	var scope contracts.NativeScope
+	result := filepath.Join(scratch, "scope.json")
+	raw, err := json.Marshal(map[string]any{"validate_only": true, "project": project, "contract": contract, "result": result})
+	if err != nil {
+		return scope, err
+	}
+	request := filepath.Join(scratch, "request.json")
+	if err = os.WriteFile(request, raw, 0600); err != nil {
+		return scope, err
 	}
 	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
-	_, err = pipeline.InspectPrivate(ctx, dir, "", filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py"), request)
+	_, err = pipeline.InspectPrivate(ctx, scratch, profile, filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py"), request)
 	if err != nil {
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return scope, ctx.Err()
 		}
-		return fmt.Errorf("invalid native model references: %w", err)
+		// Preserve a bounded diagnostic before private discovery files are removed.
+		var diagnostic struct {
+			Error string `json:"error"`
+		}
+		if data, readErr := os.ReadFile(result); readErr == nil && json.Unmarshal(data, &diagnostic) == nil && diagnostic.Error == "unsupported-input-scope" {
+			return scope, errors.New("unsupported-input-scope: model dependencies cross the selected pipeline's input boundary")
+		}
+		return scope, fmt.Errorf("invalid native model references: %w", err)
 	}
 
-	return nil
-}
-
-func validateProjectContent(root string) error {
-	return filepath.WalkDir(root, func(path string, entry os.DirEntry, e error) error {
-		if e != nil {
-			return e
+	data, err := os.ReadFile(result)
+	if err != nil {
+		return scope, err
+	}
+	if err = json.Unmarshal(data, &scope); err != nil {
+		return scope, err
+	}
+	if len(scope.Models) == 0 || len(scope.Roots) == 0 || len(scope.Models) != len(scope.Sources) {
+		return scope, fmt.Errorf("invalid native scope")
+	}
+	allowed := map[string]bool{}
+	for _, name := range scope.Models {
+		path, ok := scope.Sources[name]
+		if !ok {
+			return scope, fmt.Errorf("missing native source: %s", name)
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in normalization content")
+		allowed[path] = true
+	}
+	for _, path := range scope.Globals {
+		allowed[path] = true
+	}
+	for path := range allowed {
+		clean := filepath.Clean(filepath.FromSlash(path))
+		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.ToSlash(clean) != path || !contracts.ProductionProjectPath(path) {
+			return scope, fmt.Errorf("invalid native scope path: %s", path)
 		}
-		relative, e := filepath.Rel(root, path)
-		if e != nil {
-			return e
+		info, err := os.Lstat(filepath.Join(project, clean))
+		if err != nil {
+			return scope, err
 		}
-		relative = filepath.ToSlash(relative)
-		if !entry.IsDir() && filepath.Ext(path) == ".py" {
-			return fmt.Errorf("unsupported-content: Python in %s", path)
+		if !info.Mode().IsRegular() {
+			return scope, fmt.Errorf("invalid native scope file: %s", path)
 		}
-		// These SQLMesh inputs are unsupported by the production contract. Ignoring
-		// them would make contributor tests and actual execution disagree.
-		first, _, _ := strings.Cut(relative, "/")
-		switch first {
-		case "external_models.yaml", "external_models.yml", "metrics", "signals", "materializations", "linting":
-			return fmt.Errorf("unsupported-content: native execution input %s", path)
+	}
+	err = filepath.WalkDir(filepath.Join(project, "models"), func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		if !entry.IsDir() && contracts.ProductionProjectPath(relative) {
-			ext := filepath.Ext(path)
-			if ext != ".sql" && ext != ".yaml" && ext != ".yml" && ext != ".csv" {
-				return fmt.Errorf("unsupported-content: %s", path)
-			}
+		if entry.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(project, path)
+		if err != nil {
+			return err
+		}
+		if !allowed[filepath.ToSlash(rel)] {
+			return os.Remove(path)
 		}
 		return nil
 	})
+	return scope, err
 }
+
+func validateProjectContent(root string) error { return contracts.ValidateProjectContent(root) }

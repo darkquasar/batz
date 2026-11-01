@@ -26,6 +26,7 @@ import (
 )
 
 type Request struct {
+	Scope          contracts.NativeScope            `json:"scope"`
 	Contract       contracts.ExecutionContract      `json:"contract"`
 	PrivateScratch string                           `json:"private_scratch"`
 	CaseID         string                           `json:"case_id"`
@@ -299,9 +300,6 @@ func copyProject(source, destination string) (map[string]string, error) {
 		if walkErr != nil {
 			return walkErr
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in native project")
-		}
 		rel, err := filepath.Rel(source, path)
 		if err != nil {
 			return err
@@ -311,6 +309,9 @@ func copyProject(source, destination string) (map[string]string, error) {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in native project")
 		}
 		if entry.IsDir() {
 			return os.MkdirAll(filepath.Join(destination, rel), 0700)

@@ -7,7 +7,7 @@ identity selector and can refer to a file that no longer exists.
 ```sh
 runtime/.local/batz status --workspace /tmp/batz-example
 runtime/.local/batz status --workspace /tmp/batz-example --run-id RUN_ID
-runtime/.local/batz retry pipelines/aws-cloudtrail.yaml \
+runtime/.local/batz retry pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
   --binding-id demo --input path=/original/source.json --run-id FAILED_RUN_ID
 ```

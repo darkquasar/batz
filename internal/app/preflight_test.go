@@ -11,7 +11,7 @@ import (
 
 func TestUnqualifiedNativeInputRefusedBeforeWorkspaceMutation(t *testing.T) {
 	root := nativeContent(t)
-	native := filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml")
+	native := filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml")
 	config := `input:
   generate:
     count: 1
@@ -23,12 +23,12 @@ output:
 		t.Fatal(err)
 	}
 	workspace := filepath.Join(t.TempDir(), "workspace")
-	input, err := filepath.Abs("../../fixtures/cloudtrail/api-read.json")
+	input, err := filepath.Abs("../../pipelines/aws-cloudtrail/fixtures/api-read.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--input", "path=" + input}, &out, &diagnostics)
+	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--input", "path=" + input}, &out, &diagnostics)
 	if code != 2 {
 		t.Fatalf("unqualified route reached execution: %d %s %s", code, &out, &diagnostics)
 	}
@@ -42,8 +42,8 @@ func TestStaticRefusalsDoNotStartAcquisition(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := nativeContent(t)
 			workspace := filepath.Join(t.TempDir(), "workspace")
-			definition := filepath.Join(root, "pipelines/aws-cloudtrail.yaml")
-			input, err := filepath.Abs("../../fixtures/cloudtrail/api-read.json")
+			definition := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
+			input, err := filepath.Abs("../../pipelines/aws-cloudtrail/fixtures/api-read.json")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -67,11 +67,11 @@ func TestStaticRefusalsDoNotStartAcquisition(t *testing.T) {
 				}
 			case "missing-asset":
 				expected = 3
-				if err = os.Remove(filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml")); err != nil {
+				if err = os.Remove(filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml")); err != nil {
 					t.Fatal(err)
 				}
 			case "project-python":
-				if err = os.WriteFile(filepath.Join(root, "normalization/cloudtrail/config.py"), []byte("raise RuntimeError('PROJECT PYTHON EXECUTED')\n"), 0600); err != nil {
+				if err = os.WriteFile(filepath.Join(root, "config.py"), []byte("raise RuntimeError('PROJECT PYTHON EXECUTED')\n"), 0600); err != nil {
 					t.Fatal(err)
 				}
 			case "reserved-handoff":
@@ -99,7 +99,7 @@ func TestBothCommandsValidateTheCompletePipelineSchema(t *testing.T) {
 		for _, mutation := range []string{"missing-name", "invalid-name", "missing-required", "invalid-route-id", "unknown-unselected-field"} {
 			t.Run(command+"/"+mutation, func(t *testing.T) {
 				root := nativeContent(t)
-				definition := filepath.Join(root, "pipelines/aws-cloudtrail.yaml")
+				definition := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
 				b, err := os.ReadFile(definition)
 				if err != nil {
 					t.Fatal(err)
@@ -123,7 +123,7 @@ func TestBothCommandsValidateTheCompletePipelineSchema(t *testing.T) {
 				workspace := filepath.Join(t.TempDir(), "workspace")
 				args := []string{command, definition, "--project", root}
 				if command == "run" {
-					input, err := filepath.Abs("../../fixtures/cloudtrail/api-read.json")
+					input, err := filepath.Abs("../../pipelines/aws-cloudtrail/fixtures/api-read.json")
 					if err != nil {
 						t.Fatal(err)
 					}

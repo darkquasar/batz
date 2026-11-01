@@ -14,15 +14,15 @@ import (
 func previewContent(t *testing.T) string {
 	t.Helper()
 	root := nativeContent(t)
-	if err := os.MkdirAll(filepath.Join(root, "fixtures/cloudtrail"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "pipelines/aws-cloudtrail/fixtures"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"api-read.json", "api-read.expected.json"} {
-		data, err := os.ReadFile(filepath.Join("../../fixtures/cloudtrail", name))
+		data, err := os.ReadFile(filepath.Join("../../pipelines/aws-cloudtrail/fixtures", name))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err = os.WriteFile(filepath.Join(root, "fixtures/cloudtrail", name), data, 0600); err != nil {
+		if err = os.WriteFile(filepath.Join(root, "pipelines/aws-cloudtrail/fixtures", name), data, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -37,27 +37,27 @@ func TestPreviewRejectsJinjaTemplatingBeforeLaunch(t *testing.T) {
 		content string
 		strict  bool
 	}{
-		{"query block", "models/api_activity.sql", model + `JINJA_QUERY_BEGIN;
+		{"query block", "models/aws-cloudtrail/api_activity.sql", model + `JINJA_QUERY_BEGIN;
 SELECT 40 + 2 AS invented_probe;
 JINJA_END;
 `, true},
-		{"lowercase statement block", "models/api_activity.sql", model + `jinja_statement_begin;
+		{"lowercase statement block", "models/aws-cloudtrail/api_activity.sql", model + `jinja_statement_begin;
 SELECT 40 + 2 AS invented_probe;
 Jinja_End;
 `, false},
-		{"expression delimiter", "models/api_activity.sql", model + `SELECT {{ 40 + 2 }} AS invented_probe;
+		{"expression delimiter", "models/aws-cloudtrail/api_activity.sql", model + `SELECT {{ 40 + 2 }} AS invented_probe;
 `, true},
-		{"statement delimiter", "models/api_activity.sql", model + `{% set invented_probe = 42 %}
+		{"statement delimiter", "models/aws-cloudtrail/api_activity.sql", model + `{% set invented_probe = 42 %}
 SELECT 42 AS answer;
 `, false},
-		{"comment delimiter", "models/api_activity.sql", model + `{# invented_probe #}
+		{"comment delimiter", "models/aws-cloudtrail/api_activity.sql", model + `{# invented_probe #}
 SELECT 42 AS answer;
 `, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := previewContent(t)
-			if err := os.WriteFile(filepath.Join(root, "normalization", "cloudtrail", tt.file), []byte(tt.content), 0600); err != nil {
+			if err := os.WriteFile(filepath.Join(root, ".", tt.file), []byte(tt.content), 0600); err != nil {
 				t.Fatal(err)
 			}
 			assertTemplatingRejected(t, root, tt.file, tt.strict)
@@ -65,7 +65,7 @@ SELECT 42 AS answer;
 	}
 	t.Run("yaml config delimiter", func(t *testing.T) {
 		root := previewContent(t)
-		config := filepath.Join(root, "normalization/cloudtrail/config.yaml")
+		config := filepath.Join(root, "config.yaml")
 		data, err := os.ReadFile(config)
 		if err != nil {
 			t.Fatal(err)
@@ -86,7 +86,7 @@ SELECT 42 AS answer;
 
 func assertTemplatingRejected(t *testing.T, root, file string, strict bool) {
 	t.Helper()
-	args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json"}
+	args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
 	want := 0
 	if strict {
 		args = append(args, "--strict")

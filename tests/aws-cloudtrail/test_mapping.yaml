@@ -138,7 +138,7 @@ test_semantic_oracle_rejects_wrong_action_actor_time_and_outcome:
          ('time','object-read','reviewed-actor',1,'success'),
          ('outcome','object-read','reviewed-actor',0,'failure')) t(id,action,actor,shift_ns,outcome)
     cloudtrail.source_staging:
-      columns: {occurrence_time: TIMESTAMP_NS, original_time: VARCHAR, fraction_digits: INTEGER, mapping_status: VARCHAR}
+      columns: {observation_id: VARCHAR, payload: VARCHAR, occurrence_time: TIMESTAMP_NS, original_time: VARCHAR, fraction_digits: INTEGER, mapping_status: VARCHAR}
       query: |
         SELECT id AS observation_id,
          '{"userIdentity":{"arn":"reviewed-actor"}}' AS payload,

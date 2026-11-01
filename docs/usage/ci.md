@@ -26,7 +26,10 @@ Tests use `GOPROXY=off`, `GOSUMDB=off` and `GOTOOLCHAIN=local`.
 
 CI calls `ci/test fast`, `ci/test app`, `ci/test models <pipeline>` and
 `ci/test e2e <pipeline>`. Documentation-only changes run whitespace checks.
-Selection uses merge-base and head manifest ownership. Each native lane builds its
+Selection uses merge-base/head native model provenance and dependency graphs,
+plus manifest-owned assets. Removed edges retain former-consumer checks. An old
+layout base visibly broadens lower-layer coverage with fixed compatibility journeys;
+an invalid head fails. Unknown impact cannot become docs-only success. Each native lane builds its
 collector from the checked-out revision in private scratch; caches never replace
 that source build. Go test-result caching is disabled.
 
@@ -52,3 +55,16 @@ ci/test fast
 ```
 
 The system Python only bootstraps preparation; tests use the pinned Python.
+
+Selected model suites run as one native batch, with selected and executed test IDs
+compared exactly. Shared tests run once; requested empty/omitted suites fail. Owned helper models
+are included even when they are outside runtime roots. Selecting the full catalog
+(including `all-local`) checks every native test, including unconsumed shared models.
+Unconsumed native changes visibly broaden test selection; test-only edits select
+native tests without adapter or E2E jobs.
+`ci/test models A B` also verifies each actual adapter and its staging integration.
+CI can separate these responsibilities using the same command's `--mode native`
+and `--mode adapters` options. Private state and two native host slots apply.
+SQLMesh graph discovery requires the pinned Python dependencies; setup and CI queue
+time are reported separately from warm local test measurements. Native graph
+regressions run in `app` and are included in `all-local` cost, not hidden in fast.

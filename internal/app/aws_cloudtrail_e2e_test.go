@@ -25,7 +25,7 @@ func TestE2ENativePreviewComposesWorkspaceSelectionStructuresMacrosAndRepeatabil
 	definition := workspaceAssetDefinition(t, root)
 	workspace := t.TempDir()
 	selected := filepath.Join(workspace, "alternate")
-	copyTree(t, filepath.Join(root, "normalization/cloudtrail"), selected)
+	copyNativeCatalog(t, root, selected)
 	// Contributor metadata never participates in the executed preview project.
 	if err := os.WriteFile(filepath.Join(selected, "tests/README.md"), []byte("{{ literal contributor notes }}"), 0600); err != nil {
 		t.Fatal(err)
@@ -33,14 +33,14 @@ func TestE2ENativePreviewComposesWorkspaceSelectionStructuresMacrosAndRepeatabil
 	if err := os.WriteFile(filepath.Join(selected, "tests/test_unused.yaml"), []byte("invalid test-only YAML: [{{"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	config, err := os.ReadFile(filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml"))
+	config, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(workspace, "collector.yaml"), config, 0600); err != nil {
 		t.Fatal(err)
 	}
-	model := filepath.Join(selected, "models/api_activity.sql")
+	model := filepath.Join(selected, "models/aws-cloudtrail/api_activity.sql")
 	data, err := os.ReadFile(model)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestE2ENativePreviewComposesWorkspaceSelectionStructuresMacrosAndRepeatabil
 		t.Fatal(err)
 	}
 	binding := filepath.Join(root, "binding.yaml")
-	if err := os.WriteFile(binding, []byte("apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: demo\ndefinition: repo://pipelines/aws-cloudtrail.yaml\nversion: 1\nroute: local_raw\nnormalization:\n  project: workspace://alternate\n"), 0600); err != nil {
+	if err := os.WriteFile(binding, []byte("apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: demo\ndefinition: repo://pipelines/aws-cloudtrail/pipeline.yaml\nversion: 1\nroute: local_raw\nnormalization:\n  project: workspace://alternate\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var last contracts.ExplainReport
@@ -166,7 +166,7 @@ func assertInspectionFailures(t *testing.T, root string, report contracts.Explai
 func TestE2EExplicitLocalExampleWithRouteIsAccepted(t *testing.T) {
 	root := previewContent(t)
 	sample := filepath.Join(t.TempDir(), "custom.json")
-	source, err := os.ReadFile(filepath.Join(root, "fixtures/cloudtrail/api-read.json"))
+	source, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/fixtures/api-read.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestE2EExplicitLocalExampleWithRouteIsAccepted(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw", "--example", sample, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
+	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--example", sample, "--level", "3", "--format", "json", "--strict"}, &out, &diagnostics)
 	if code != 0 {
 		t.Fatalf("explicit association rejected: %d %s %s", code, &out, &diagnostics)
 	}
@@ -207,7 +207,7 @@ func TestE2ETinyMixedNativeWiringRetainsStrictPartial(t *testing.T) {
 	bad["eventID"] = 42
 	unsupported["eventName"] = "PutObject"
 	writeRecords(t, input, []map[string]any{valid, bad, unsupported, nil})
-	nativePath := filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml")
+	nativePath := filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml")
 	native, err := os.ReadFile(nativePath)
 	if err != nil {
 		t.Fatal(err)
@@ -222,7 +222,7 @@ func TestE2ETinyMixedNativeWiringRetainsStrictPartial(t *testing.T) {
 	}
 	workspace := t.TempDir()
 	var out, stderr bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input, "--strict"}, &out, &stderr)
+	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input, "--strict"}, &out, &stderr)
 	var report contracts.RunReport
 	if err = json.Unmarshal(out.Bytes(), &report); err != nil {
 		t.Fatal(err)
@@ -250,7 +250,7 @@ func TestE2ETinyMixedNativeWiringRetainsStrictPartial(t *testing.T) {
 		t.Fatalf("context was not read-only: %v %v", info, err)
 	}
 	var defaultOut, defaultErrors bytes.Buffer
-	code = app.Execute([]string{"retry", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}, &defaultOut, &defaultErrors)
+	code = app.Execute([]string{"retry", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}, &defaultOut, &defaultErrors)
 	var relaxed contracts.RunReport
 	if err := json.Unmarshal(defaultOut.Bytes(), &relaxed); err != nil {
 		t.Fatal(err)
@@ -268,7 +268,7 @@ func TestE2ELocalFixturePublishesQueryableRevision(t *testing.T) {
 	root := previewContent(t)
 	var err error
 	workspace := t.TempDir()
-	input := filepath.Join(root, "fixtures/cloudtrail/api-read.json")
+	input := filepath.Join(root, "pipelines/aws-cloudtrail/fixtures/api-read.json")
 	// Empty selection traverses the actual adapter, typed Parquet, SQLMesh,
 	// publication and ordinary reader before same-interval new membership.
 	if err := os.WriteFile(input, []byte("{\"Records\":[]}"), 0600); err != nil {
@@ -292,7 +292,7 @@ func TestE2ELocalFixturePublishesQueryableRevision(t *testing.T) {
 	}
 	writeRecords(t, input, records)
 	binding := filepath.Join(workspace, "binding.yaml")
-	if err := os.WriteFile(binding, []byte("apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: demo\ndefinition: repo://pipelines/aws-cloudtrail.yaml\nversion: 1\nroute: local_raw\ninput:\n  path: repo://fixtures/cloudtrail/api-read.json\n"), 0600); err != nil {
+	if err := os.WriteFile(binding, []byte("apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: demo\ndefinition: repo://pipelines/aws-cloudtrail/pipeline.yaml\nversion: 1\nroute: local_raw\ninput:\n  path: repo://pipelines/aws-cloudtrail/fixtures/api-read.json\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer

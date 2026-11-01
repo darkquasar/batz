@@ -14,13 +14,13 @@ import (
 
 func workspaceAssetDefinition(t *testing.T, root string) string {
 	t.Helper()
-	path := filepath.Join(root, "pipelines/aws-cloudtrail.yaml")
+	path := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	data = bytes.ReplaceAll(data, []byte("repo://normalization/cloudtrail"), []byte("workspace://models"))
-	data = bytes.ReplaceAll(data, []byte("repo://collector/configs/cloudtrail/local-records.yaml"), []byte("workspace://collector.yaml"))
+	data = bytes.ReplaceAll(data, []byte("repo://."), []byte("workspace://models"))
+	data = bytes.ReplaceAll(data, []byte("repo://pipelines/aws-cloudtrail/input/local-records.yaml"), []byte("workspace://collector.yaml"))
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -32,8 +32,8 @@ func TestUnresolvedWorkspaceAssetsRemainSymbolic(t *testing.T) {
 	definition := workspaceAssetDefinition(t, root)
 	// A literal workspace: directory must not become an implicit URI fallback.
 	fake := filepath.Join(root, "pipelines/workspace:")
-	copyTree(t, filepath.Join(root, "normalization", "cloudtrail"), filepath.Join(fake, "models"))
-	data, err := os.ReadFile(filepath.Join(root, "collector/configs/cloudtrail/local-records.yaml"))
+	copyNativeCatalog(t, root, filepath.Join(fake, "models"))
+	data, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestUnresolvedWorkspaceAssetsRemainSymbolic(t *testing.T) {
 		t.Fatal(err)
 	}
 	caller := t.TempDir()
-	copyTree(t, filepath.Join(root, "normalization", "cloudtrail"), filepath.Join(caller, "workspace:/models"))
+	copyNativeCatalog(t, root, filepath.Join(caller, "workspace:/models"))
 	t.Chdir(caller)
 	var out, diagnostics bytes.Buffer
 	code := app.Execute([]string{"explain", definition, "--project", root, "--level", "2", "--format", "json", "--strict"}, &out, &diagnostics)
@@ -59,7 +59,7 @@ func TestCallerRelativeWorkspaceOverridesTheBindingSelector(t *testing.T) {
 	caller := t.TempDir()
 	t.Chdir(caller)
 	workspace := filepath.Join(caller, "selected")
-	data, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail.yaml"))
+	data, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestCallerRelativeWorkspaceOverridesTheBindingSelector(t *testing.T) {
 	})
 	t.Run("run preflight", func(t *testing.T) {
 		var out, diagnostics bytes.Buffer
-		code := app.Execute([]string{"run", "--project", root, "--binding", binding, "--workspace", "./selected", "--input", "path=repo://fixtures/cloudtrail/api-read.json"}, &out, &diagnostics)
+		code := app.Execute([]string{"run", "--project", root, "--binding", binding, "--workspace", "./selected", "--input", "path=repo://pipelines/aws-cloudtrail/fixtures/api-read.json"}, &out, &diagnostics)
 		if code != 3 || !strings.Contains(diagnostics.String(), "storage configuration") {
 			t.Fatalf("definition mismatch hid the selected unsupported capability: %d %s %s", code, &out, &diagnostics)
 		}
@@ -134,7 +134,7 @@ func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) 
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json"}
+			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
 			args = append(args, tt.args...)
 			var out, diagnostics bytes.Buffer
 			code := app.Execute(args, &out, &diagnostics)
@@ -154,7 +154,7 @@ func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) 
 
 func TestDeclaredOutputDoesNotInventNativeFilesOrStructures(t *testing.T) {
 	root := previewContent(t)
-	definition := filepath.Join(root, "pipelines/aws-cloudtrail.yaml")
+	definition := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
 	data, err := os.ReadFile(definition)
 	if err != nil {
 		t.Fatal(err)

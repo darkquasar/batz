@@ -5,7 +5,8 @@ are refused before collection; retained reports, receipts and immutable publishe
 data continue to use their existing `batz/v0alpha1` formats. The pipeline `version`
 remains the selected content revision, distinct from the manifest format version.
 
-Each pipeline declares its own `normalization.project`, shared by its routes.
+Maintained pipelines share the root `normalization.project: repo://.` catalog.
+Source models live in `models/<pipeline>/`; reusable SQL lives in `models/shared/`.
 `normalization.staging`, `evidence` and `checks` name native SQLMesh models.
 Routes declare `input.framing` (`records-json` or the synthetic `jsonl` adapter)
 and map individual output dataset names to native model IDs. SQLMesh validates
@@ -47,8 +48,15 @@ per output row; reconciliation and multi-origin rows remain S4 work.
 
 Production skips contributor unit tests. Production identity includes the selected
 resolved route contract, native config, runtime/coordinator identities and copied
-production project content. Explain examples and project tests do not invalidate
+selected model sources plus conservative config/audit/macro/seed content. Explain examples and project tests do not invalidate
 an existing normalized revision. Executed config/model/audit/macro/seed edits do.
 All SQLMesh test contexts, caches and state live in private temporary directories.
 Static explain reports declared boundaries without guessing SQL filenames or
 claiming observed schemas; native projection supplies actual structures/values.
+
+Use a fresh workspace after adopting this layout. Each build attempt has fresh
+private SQLMesh state, removed after its process group stops; published revisions
+and committed input remain separate. Attempt logs and requests remain available.
+Only declared roots and their native ancestors are materialized. Changing tests
+or unrelated model SQL preserves reuse; changing shared executed SQL rebuilds
+from retained committed input without collecting again.

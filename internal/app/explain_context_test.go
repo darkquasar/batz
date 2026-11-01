@@ -14,7 +14,7 @@ import (
 func TestExplainPreservesTimestampDefaultText(t *testing.T) {
 	const timestamp = "2026-10-25T12:00:00.120000000+10:00"
 	root := t.TempDir()
-	data, err := os.ReadFile("../../pipelines/aws-cloudtrail.yaml")
+	data, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestExplainPreservesTimestampDefaultText(t *testing.T) {
 
 func TestRunAggregatesInvalidInputWithMissingValuesAndAssets(t *testing.T) {
 	root := t.TempDir()
-	data, err := os.ReadFile("../../pipelines/aws-cloudtrail.yaml")
+	data, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestExplainHistoricalPrecedenceTracesAndTypedCLIValues(t *testing.T) {
 kind: SourcePipeline
 name: aws-cloudtrail
 version: 1
-normalization: {project: repo://normalization/cloudtrail, staging: cloudtrail.source_staging, evidence: cloudtrail.build_evidence, checks: cloudtrail.required_checks}
+normalization: {project: repo://., staging: cloudtrail.source_staging, evidence: cloudtrail.build_evidence, checks: cloudtrail.required_checks}
 routes:
   s3_raw:
     input:
@@ -257,7 +257,7 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			root := previewContent(t)
-			path := filepath.Join(root, "normalization/cloudtrail/config.yaml")
+			path := filepath.Join(root, "config.yaml")
 			data, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatal(err)
@@ -282,7 +282,7 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 			if err := os.WriteFile(path, changed, 0600); err != nil {
 				t.Fatal(err)
 			}
-			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--format", "json"}
+			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
 			args = append(args, tt.args...)
 			var out, diagnostics bytes.Buffer
 			code := app.Execute(args, &out, &diagnostics)

@@ -36,13 +36,15 @@ preserve the source format instead of disguising it as another vendor's input.
 A typical contribution would add:
 
 ```text
-pipelines/okta-audit.yaml
-collector/configs/okta/local.yaml
-normalization/okta/config.yaml
-normalization/okta/models/*.sql
-normalization/okta/tests/test_mapping.yaml
-fixtures/okta/sample.json
-fixtures/okta/sample.expected.json
+config.yaml                          # existing root configuration
+pipelines/okta-audit/pipeline.yaml
+pipelines/okta-audit/input/local.yaml
+pipelines/okta-audit/fixtures/sample.json
+pipelines/okta-audit/fixtures/sample.expected.json
+models/okta-audit/*.sql
+tests/okta-audit/test_mapping.yaml
+models/shared/*.sql                   # when reusable logic exists
+tests/shared/test_*.yaml
 internal/app/okta_audit_e2e_test.go
 ```
 
@@ -54,14 +56,27 @@ Manifest discovery is automatic; there is no pipeline registry to edit.
 
 Put source mapping and semantic checks in native SQLMesh SQL. Batz retains common
 schema, identity, membership, lineage, accounting and publication checks. Use the
-existing contract and small synthetic project under
+existing contract and small synthetic manifest under
 [testdata](internal/app/testdata/synthetic/) as structural references.
 
-Each pipeline currently owns a SQLMesh project shared by its routes, using the
-same installed toolchain as other projects. This Batz boundary keeps source
-loading and verification independent. It adds configuration duplication and makes
-cross-source model dependencies less convenient. SQLMesh also supports shared
-projects and model selection; project separation is an architectural choice.
+All maintained pipelines reference `normalization.project: repo://.`. SQLMesh
+loads one root catalog recursively. Model IDs are explicit SQLMesh names; their
+schema need not match the pipeline name. Source ownership comes from
+`models/<pipeline-name>/`; reusable within-binding logic belongs in `models/shared/`.
+Dependencies on another pipeline's source-specific models are refused. Sharing
+SQL does not combine bindings or their input data.
+
+Batz snapshots only admitted declarative inputs, selects all required roots and
+native ancestors, and runs that closure with fresh private framework state.
+Tests and unrelated SQL do not invalidate a binding's normalized reuse. Config,
+audits, macros and seeds are conservative execution globals. Keep configuration
+declarative and bounded; project Python, Jinja, hooks and symlinks are unsupported.
+
+Performance is an acceptance requirement: avoid per-owner full-project tests,
+unnecessary engine starts and new coordination layers. The fixed warm workloads
+are measured with result caching disabled; missed accepted bounds block the
+milestone. Fresh workspaces are required for this layout; no old-state migration
+or compatibility loader is provided.
 
 ## 3. Add small, meaningful examples
 
@@ -120,7 +135,7 @@ limitations in the PR. Obtain a milestone review and retain its findings and
 their correction/disposition evidence.
 
 The authored CI selector derives ownership from manifests at merge-base and
-head. A pipeline-only change selects its model/adapter and E2E checks plus fast
+head and both native dependency graphs, including former consumers. A pipeline-only change selects its model/adapter and E2E checks plus fast
 contracts. Shared adapter/bridge changes broaden compatibility checks. CI calls
 the same local commands on isolated GitHub-hosted macOS ARM64 runners.
 

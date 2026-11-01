@@ -2,7 +2,7 @@
 """Shared local/CI commands around Go, unittest and native SQLMesh."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import threading
 import fcntl
 import hashlib
@@ -159,17 +159,24 @@ def fast(catalog):
 
 
 def app():
-    # Exactly two package workers; the host allocator reserves both native slots.
-    command(['go', 'test', '-tags', 'batz_app', './internal/app', './internal/run',
-             './internal/scratch', '-run', '^TestApp', '-p', '2', '-count=1'])
-    command([sys.executable, '-I', '-m', 'unittest', 'discover', '-s', 'runtime/sqlmesh', '-p', 'test_runner.py'])
+    def python_contracts():
+        # One interpreter avoids repeated SQLMesh imports; each fixture owns state.
+        command([sys.executable, '-I', '-c',
+                 "import sys,unittest,os,tempfile; scratch=tempfile.TemporaryDirectory(prefix='batz-contracts-'); "
+                 "os.environ['SQLMESH_HOME']=scratch.name; os.environ['SQLMESH__DISABLE_ANONYMIZED_ANALYTICS']='true'; sys.path[:0]=['runtime/sqlmesh','ci']; "
+                 "suite=unittest.TestLoader().loadTestsFromNames(['test_runner','test_scope','native_select_test']); "
+                 "result=unittest.TextTestRunner(verbosity=1).run(suite); sys.exit(not result.wasSuccessful())"])
+    run_jobs([
+        (1, lambda: command(['go','test','-tags','batz_app','./internal/app','-run','^TestApp','-p','1','-count=1'])),
+        (1, lambda: command(['go','test','-tags','batz_app','./internal/run','./internal/scratch','-run','^TestApp','-p','1','-count=1'])),
+        (1, python_contracts),
+    ])
 
 
-def models(identity, item):
-    project = ROOT / reference(item['path'], item['document']['normalization']['project'])
-    if not list((project / 'tests').glob('test*.y*ml')):
-        raise ValueError('missing requested native model tests: ' + identity)
-    command([sys.executable, '-I', ROOT / 'runtime/sqlmesh/test_models.py', ROOT / item['path']])
+def models(selected, catalog, mode='both'):
+    command([sys.executable, '-I', ROOT/'runtime/sqlmesh/test_models.py', '--mode', mode,
+             *(['--all-tests'] if set(selected) == set(catalog) else []),
+             *[ROOT/catalog[identity]['path'] for identity in sorted(set(selected))]])
 
 
 def e2e(identity):
@@ -183,19 +190,22 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('lane', choices=['fast', 'app', 'models', 'e2e', 'all-local'])
     parser.add_argument('pipelines', nargs='*')
-    args = parser.parse_args()
+    parser.add_argument('--mode', choices=['both','native','adapters'],default='both')
+    args = parser.parse_intermixed_args()
     catalog = working_catalog()
     if args.pipelines and args.lane not in ('models', 'e2e'):
         raise ValueError('pipeline arguments require models or e2e lane')
     for identity in args.pipelines:
         if identity not in catalog:
             raise ValueError('unknown requested pipeline: ' + identity)
+    if args.mode != 'both' and args.lane != 'models':
+        raise ValueError('--mode requires models lane')
     selected = args.pipelines or sorted(catalog)
     lock = environment()
     if args.lane == 'fast':
         fast(catalog)
         return 0
-    with prepare_native(lock):
+    with (nullcontext() if args.lane == 'models' and args.mode == 'native' else prepare_native(lock)):
         return native_jobs(args, selected, catalog)
 
 
@@ -204,10 +214,10 @@ def native_jobs(args, selected, catalog):
     if args.lane == 'all-local':
         jobs.append((0, lambda: fast(catalog)))
     if args.lane in ('app', 'all-local'):
-        jobs.append((2, app))
+        jobs.append((0, app))
     if args.lane in ('models', 'all-local'):
-        for identity in selected:
-            jobs.append((1, lambda identity=identity: models(identity, catalog[identity])))
+        mode = args.mode
+        jobs.append((1, lambda: models(selected,catalog,mode)))
     if args.lane in ('e2e', 'all-local'):
         for identity in selected:
             jobs.append((1, lambda identity=identity: e2e(identity)))

@@ -120,7 +120,15 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	if err = os.WriteFile(config, configData, 0600); err != nil {
 		return 1, err
 	}
-	runReport, err := pipeline.Execute(ctx, pipeline.Request{Contract: manifest.Execution(example.Route), Root: root, Workspace: filepath.Join(dir, "work"), Definition: definition, Route: example.Route, Source: fixture, Binding: "preview", NativeConfig: config, Project: copied, PrivateScratch: dir, SandboxProfile: profile})
+	inspection := filepath.Join(dir, "discovery")
+	if err = os.MkdirAll(inspection, 0700); err != nil {
+		return 1, err
+	}
+	scope, err := inspectModelScope(ctx, root, copied, inspection, profile, manifest.Execution(example.Route))
+	if err != nil {
+		return 3, err
+	}
+	runReport, err := pipeline.Execute(ctx, pipeline.Request{Scope: scope, Contract: manifest.Execution(example.Route), Root: root, Workspace: filepath.Join(dir, "work"), Definition: definition, Route: example.Route, Source: fixture, Binding: "preview", NativeConfig: config, Project: copied, PrivateScratch: dir, SandboxProfile: profile})
 	report.Runtime["resources"] = runReport.Resources
 	report.Assets[example.Input] = example.SHA256
 	report.Runtime["run"] = runReport
@@ -256,28 +264,20 @@ func admitProject(root string) error {
 		if err != nil {
 			return err
 		}
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in normalization content")
-		}
-		if entry.IsDir() {
-			return nil
-		}
-		relative, err := filepath.Rel(root, path)
+		rel, err := filepath.Rel(root, path)
 		if err != nil {
 			return err
 		}
-		if !contracts.ProductionProjectPath(filepath.ToSlash(relative)) {
+		if !contracts.ProductionProjectPath(filepath.ToSlash(rel)) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
 			return nil
 		}
-		switch filepath.Ext(path) {
-		case ".sql", ".yaml", ".yml":
-			return admitTemplateFree(root, path)
-		case ".csv":
-			// Seed rows are loaded as data, not rendered as templates.
+		if entry.IsDir() || filepath.Ext(path) == ".csv" {
 			return nil
-		default:
-			return fmt.Errorf("unsupported project content: %s", path)
 		}
+		return admitTemplateFree(root, path)
 	})
 }
 
@@ -310,14 +310,14 @@ func copyProject(source, target string) error {
 			return err
 		}
 		dest := filepath.Join(target, relative)
-		if entry.Type()&os.ModeSymlink != 0 {
-			return fmt.Errorf("symlink in copied project")
-		}
 		if !contracts.ProductionProjectPath(filepath.ToSlash(relative)) {
 			if entry.IsDir() {
 				return filepath.SkipDir
 			}
 			return nil
+		}
+		if entry.Type()&os.ModeSymlink != 0 {
+			return fmt.Errorf("symlink in native project")
 		}
 		if entry.IsDir() {
 			return os.MkdirAll(dest, 0700)

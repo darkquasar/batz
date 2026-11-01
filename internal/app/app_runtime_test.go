@@ -219,22 +219,29 @@ func TestAppUndeclaredModelSelectionRefusedBeforeAcquisition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	changed := strings.Replace(string(b), "probe.findings", "probe.missing", 1)
-	if changed == string(b) {
-		t.Fatal("test mutation missing")
-	}
-	if err = os.WriteFile(definition, []byte(changed), 0600); err != nil {
-		t.Fatal(err)
-	}
-	workspace := filepath.Join(t.TempDir(), "workspace")
-	input := filepath.Join(root, "internal/app/testdata/synthetic/events.jsonl")
-	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", definition, "--project", root, "--route", "local_raw", "--workspace", workspace, "--input", "path=" + input}, &out, &diagnostics)
-	if code != 2 {
-		t.Fatalf("model selection ignored: exit=%d %s %s", code, &diagnostics, &out)
-	}
-	if _, err = os.Stat(workspace); !os.IsNotExist(err) {
-		t.Fatalf("preflight mutated workspace: %v", err)
+	for _, model := range []string{"probe.missing", "cloudtrail.api_activity"} {
+		t.Run(model, func(t *testing.T) {
+			changed := strings.Replace(string(b), "probe.findings", model, 1)
+			if changed == string(b) {
+				t.Fatal("test mutation missing")
+			}
+			if err := os.WriteFile(definition, []byte(changed), 0600); err != nil {
+				t.Fatal(err)
+			}
+			workspace := filepath.Join(t.TempDir(), "workspace")
+			input := filepath.Join(root, "internal/app/testdata/synthetic/events.jsonl")
+			var out, diagnostics bytes.Buffer
+			code := app.Execute([]string{"run", definition, "--project", root, "--route", "local_raw", "--workspace", workspace, "--input", "path=" + input}, &out, &diagnostics)
+			if code != 2 {
+				t.Fatalf("model selection ignored: exit=%d %s %s", code, &diagnostics, &out)
+			}
+			if model == "cloudtrail.api_activity" && !strings.Contains(diagnostics.String(), "unsupported-input-scope") {
+				t.Fatalf("foreign input diagnostic lost: %s", &diagnostics)
+			}
+			if _, err := os.Stat(workspace); !os.IsNotExist(err) {
+				t.Fatalf("preflight mutated workspace: %v", err)
+			}
+		})
 	}
 }
 
@@ -251,7 +258,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	workspace := t.TempDir()
 	// The output depends on an undeclared FULL side branch. Membership changes
 	// within one processed interval must refresh that branch as well.
-	modelPath := filepath.Join(root, "internal/app/testdata/synthetic/normalization/models/findings.sql")
+	modelPath := filepath.Join(root, "models/synthetic-jsonl/findings.sql")
 	outputSQL, err := os.ReadFile(modelPath)
 	if err != nil {
 		t.Fatal(err)
@@ -264,7 +271,26 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(filepath.Dir(modelPath), "member_count.sql"), []byte("MODEL (name probe.member_count, kind FULL); SELECT count(*)::BIGINT AS members FROM batz_input.parsed;\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
+	shared := filepath.Join(root, "models/shared")
+	if err := os.MkdirAll(shared, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(filepath.Dir(modelPath), "member_count.sql"), filepath.Join(shared, "member_count.sql")); err != nil {
+		t.Fatal(err)
+	}
+	poison := filepath.Join(root, "models/aws-cloudtrail/unrelated.sql")
+	if err := os.WriteFile(poison, []byte("MODEL (name cloudtrail.unrelated, kind FULL); SELECT error('unrelated model executed') AS value FROM probe.member_count;"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	prior := runSharedFixture(t, root, workspace, input)
+	assertNoModelState := func() {
+		t.Helper()
+		paths, err := filepath.Glob(filepath.Join(workspace, ".batz/builds/*/model-state"))
+		if err != nil || len(paths) != 0 {
+			t.Fatalf("disposable state retained: %v %v", paths, err)
+		}
+	}
+	assertNoModelState()
 	finishReader := holdReader(t, root, workspace, *prior.Catalog)
 	// An uncommitted closed file must never become selected SQL membership.
 	parsed, err := os.ReadFile(filepath.Join(workspace, ".batz/parsed", string(*prior.ParsedRevision), "parsed.parquet"))
@@ -283,7 +309,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if err := os.WriteFile(input, records.Bytes(), 0600); err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(root, "internal/app/testdata/synthetic/normalization/models/required_checks.sql")
+	path := filepath.Join(root, "models/synthetic-jsonl/required_checks.sql")
 	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -304,6 +330,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if code == 0 || failed.Outcome != "normalization-failed" || !failed.AcquisitionComplete || failed.ParsedRevision == nil || failed.NormalizedRevision == nil || *failed.NormalizedRevision != *prior.NormalizedRevision {
 		t.Fatalf("wrong instant published or evidence lost: exit=%d report=%s diagnostics=%s", code, &out, &diagnostics)
 	}
+	assertNoModelState()
 	if code != 4 || len(failed.Diagnostics) != 1 || failed.Diagnostics[0].Category != "assertion" || failed.Diagnostics[0].Code != "required-check" {
 		t.Fatalf("wrong assertion classification: %d %s", code, &out)
 	}
@@ -380,7 +407,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 		t.Fatalf("undeclared FULL model kept stale membership: %s", got)
 	}
 	finishReader(*recovered.Catalog, 7)
-	testDir := filepath.Join(root, "internal/app/testdata/synthetic/normalization/tests")
+	testDir := filepath.Join(root, "tests/synthetic-jsonl")
 	if err := os.MkdirAll(testDir, 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -397,6 +424,9 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	}
 	manifest = bytes.ReplaceAll(manifest, []byte("c3f364dcc3a4dfc28c5c675e4ef6635b312ae988e1bf30d5d1639bb4573f566b"), []byte(strings.Repeat("a", 64)))
 	if err := os.WriteFile(definition, manifest, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(poison, []byte("MODEL (name cloudtrail.unrelated, kind FULL); SELECT error('B-only edit executed') AS value;"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	retried.Reset()

@@ -137,6 +137,9 @@ func settleProcessGroup(pid int) error {
 	}
 }
 
+// unsettledProcessError prevents callers from removing files a child may still use.
+type unsettledProcessError struct{ error }
+
 func child(ctx context.Context, lease *os.File, dir, logpath string, budget childBudget, environment []string, program string, args ...string) (usage contracts.ResourceUsage, err error) {
 	usage.SampleIntervalMS = 100
 	start := time.Now()
@@ -186,7 +189,7 @@ func child(ctx context.Context, lease *os.File, dir, logpath string, budget chil
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 		<-done
 		if e := settleProcessGroup(cmd.Process.Pid); e != nil {
-			return fmt.Errorf("%v; %w", cause, e)
+			return unsettledProcessError{fmt.Errorf("%v; %w", cause, e)}
 		}
 		return cause
 	}
@@ -228,7 +231,7 @@ func child(ctx context.Context, lease *os.File, dir, logpath string, budget chil
 					}
 				}
 				if e = settleProcessGroup(cmd.Process.Pid); e != nil {
-					return usage, e
+					return usage, unsettledProcessError{e}
 				}
 			}
 			if e := checkScratch(); e != nil {
