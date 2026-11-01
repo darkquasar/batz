@@ -4,12 +4,10 @@ This is the baseline journey for adding a source integration. `okta-audit` below
 is an illustrative pipeline name, not an implemented or qualified integration.
 Source research and detailed mapping design belong to the contribution.
 
-Start with the [specification](../specs/batz/01-dfir-log-pipeline/pipeline-spec.md),
-the applicable [plan](../specs/batz/01-dfir-log-pipeline/pipeline-plan.md) slice,
-and the [pipeline contract](docs/usage/pipeline-contract.md). Prepare the
-[pinned tools](runtime/dependencies.lock.json); native lanes currently require
-the qualified macOS ARM64 environment. See [README](README.md) for local/CI scope
-and the external toolchain option.
+Start with the [pipeline contract](docs/usage/pipeline-contract.md). Prepare the
+[pinned tools](runtime/dependencies.lock.json) using the
+[macOS setup instructions](docs/usage/ci.md). See [README](README.md) for
+local/CI scope and the external toolchain option.
 
 ```text
 +----------------+  implement  +------------------+  verify  +----------------+
@@ -118,13 +116,13 @@ ci/test all-local
 ```
 
 Include the supported scope, reviewed expectations, actual check results and
-limitations in the PR. Follow the plan's milestone review gates, including the
-Claude checkpoint; retain findings and their correction/disposition evidence.
+limitations in the PR. Obtain a milestone review and retain its findings and
+their correction/disposition evidence.
 
 The authored CI selector derives ownership from manifests at merge-base and
 head. A pipeline-only change selects its model/adapter and E2E checks plus fast
 contracts. Shared adapter/bridge changes broaden compatibility checks. CI calls
-the same local commands; runner activation remains unverified.
+the same local commands on isolated GitHub-hosted macOS ARM64 runners.
 
 Keep verification affordable: share lifecycle proof, batch source semantics,
 and add native journeys only for distinguishing integration behavior. Use

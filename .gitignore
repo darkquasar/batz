@@ -15,6 +15,7 @@ coverage.out
 /coverage/
 
 # Local workspace state and tool caches.
+/REPOLOCAL.md
 .batz/
 .cache/
 /.local/

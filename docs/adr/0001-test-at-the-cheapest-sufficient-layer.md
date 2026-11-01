@@ -95,6 +95,5 @@ SQLMesh owns model lifecycle and its native testing facilities.
 Earlier selected checks fell from seven native runs/28.16 s to three/11.57 s;
 eight expectation checks used one Python process/0.04 s. Those observations
 support startup reduction, not a universal latency or production-scale promise.
-Current execution evidence and cost measurements live in the existing
-[pipeline handoff](../../../specs/batz/01-dfir-log-pipeline/archive/spec-authoring-handoff-2026-10-31.md).
-CI activation remains a separate qualification from the local commands.
+Local cost measurements and hosted CI execution are separate qualifications.
+The [CI guide](../usage/ci.md) describes selected jobs and setup costs.
