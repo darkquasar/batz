@@ -6,12 +6,14 @@ on:
 permissions:
   contents: read
 
-# Provisioned outside the checkout, mounted read-only to ephemeral jobs.
-# Activation requires a qualified host; this workflow installs nothing.
+# Standard hosted macOS VMs are private to each job.
+# Owner-approved macOS exception: pinned setup precedes offline tests.
 env:
-  BATZ_TOOLCHAIN_ROOT: /opt/batz/toolchain
-  # Each ephemeral runner has its own prewarmed writable cache volume.
-  GOCACHE: /opt/batz/job-cache/gocache
+  BATZ_TOOLCHAIN_ROOT: ${{ github.workspace }}/../batz-toolchain
+  BATZ_DOWNLOAD_CACHE: ${{ github.workspace }}/../batz-cache/downloads
+  GOMODCACHE: ${{ github.workspace }}/../batz-cache/gomod
+  GOCACHE: ${{ github.workspace }}/../batz-cache/gocache
+  GOPATH: ${{ github.workspace }}/../batz-gopath
   BATZ_DIFF_BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
 
 defaults:
@@ -21,7 +23,8 @@ defaults:
 jobs:
   select:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     outputs:
       fast: ${{ steps.jobs.outputs.fast }}
       app: ${{ steps.jobs.outputs.app }}
@@ -34,6 +37,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           clean: true
+      - uses: ./.github/actions/prepare-macos
       - id: jobs
         env:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
@@ -52,31 +56,36 @@ jobs:
   fast:
     needs: select
     if: needs.select.outputs.fast == 'true'
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
           clean: true
+      - uses: ./.github/actions/prepare-macos
       - run: ci/test fast
 
   shared-runtime:
     needs: select
     if: needs.select.outputs.app == 'true'
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false
           clean: true
+      - uses: ./.github/actions/prepare-macos
       - run: ci/test app
 
   models:
     needs: select
     if: needs.select.outputs.models != '[]'
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -87,6 +96,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           clean: true
+      - uses: ./.github/actions/prepare-macos
       - env:
           PIPELINE: ${{ matrix.pipeline }}
         run: ci/test models "$PIPELINE"
@@ -94,7 +104,8 @@ jobs:
   e2e:
     needs: select
     if: needs.select.outputs.e2e != '[]'
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -105,6 +116,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           clean: true
+      - uses: ./.github/actions/prepare-macos
       - env:
           PIPELINE: ${{ matrix.pipeline }}
         run: ci/test e2e "$PIPELINE"
@@ -112,7 +124,8 @@ jobs:
   docs:
     needs: select
     if: needs.select.outputs.docs == 'true'
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -127,7 +140,8 @@ jobs:
   gate:
     needs: [select, fast, shared-runtime, models, e2e, docs]
     if: always()
-    runs-on: [self-hosted, macOS, ARM64, batz-qualified-ephemeral]
+    runs-on: macos-15
+    timeout-minutes: 20
     steps:
       - name: Require successful selection and selected checks
         env:
