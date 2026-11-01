@@ -6,6 +6,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 # Standard hosted macOS VMs are private to each job.
 # Owner-approved macOS exception: pinned setup precedes offline tests.
 env:
@@ -38,6 +42,8 @@ jobs:
           persist-credentials: false
           clean: true
       - uses: ./.github/actions/prepare-macos
+        with:
+          build-cache: 'false'
       - id: jobs
         env:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
@@ -136,7 +142,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: git diff --check "$(git merge-base "$BASE" HEAD)" HEAD
 
-  # Configure this as the required PR check when qualified runners are activated.
+  # Require this check after hosted-run evidence is accepted.
   gate:
     needs: [select, fast, shared-runtime, models, e2e, docs]
     if: always()

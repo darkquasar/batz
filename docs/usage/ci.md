@@ -1,7 +1,8 @@
 # Pull-request checks
 
 The PR workflow uses standard GitHub-hosted `macos-15` ARM64 runners. Each
-selected job gets a fresh VM, checkout, toolchain and writable Go build cache.
+job gets a fresh VM. Selection and test jobs prepare private toolchains;
+test jobs also restore their own writable Go build caches.
 The macOS exception allows dependency preparation before tests; Linux's future
 prepared-image requirement is unchanged.
 
@@ -9,7 +10,8 @@ Preparation downloads the Go and standalone Python archives named in
 `runtime/dependencies.lock.json`, verifies their SHA-256 hashes, installs the
 hash-locked Python wheels and downloads/verifies the Go modules. Caches accelerate
 preparation; a cache miss performs the same verified setup. Corrupt archives fail
-visibly. Tests use `GOPROXY=off`, `GOSUMDB=off` and `GOTOOLCHAIN=local`.
+visibly; delete the offending entry with `gh cache delete <key>` before retrying.
+Tests use `GOPROXY=off`, `GOSUMDB=off` and `GOTOOLCHAIN=local`.
 
 ```text
 +----------------+  pinned setup  +------------------+  selection  +----------------+
@@ -24,7 +26,7 @@ visibly. Tests use `GOPROXY=off`, `GOSUMDB=off` and `GOTOOLCHAIN=local`.
 
 CI calls `ci/test fast`, `ci/test app`, `ci/test models <pipeline>` and
 `ci/test e2e <pipeline>`. Documentation-only changes run whitespace checks.
-Selection uses merge-base and head manifest ownership. Each test lane builds its
+Selection uses merge-base and head manifest ownership. Each native lane builds its
 collector from the checked-out revision in private scratch; caches never replace
 that source build. Go test-result caching is disabled.
 

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 def verified_download(url, destination, expected):
     if not destination.exists():
         partial = destination.with_suffix('.partial')
-        subprocess.run(['curl', '--fail', '--location', '--retry', '3',
+        subprocess.run(['curl', '--fail', '--location', '--retry', '3', '--retry-all-errors',
                         '--output', str(partial), url], check=True)
         if hashlib.sha256(partial.read_bytes()).hexdigest() != expected:
             raise ValueError('download checksum mismatch: ' + destination.name)
@@ -63,5 +63,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except (ValueError, OSError, subprocess.CalledProcessError) as error:
+    except (ValueError, OSError, KeyError, StopIteration, subprocess.CalledProcessError) as error:
         sys.exit(str(error))

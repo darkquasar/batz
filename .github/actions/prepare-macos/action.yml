@@ -1,20 +1,23 @@
 name: Prepare pinned macOS tools
 description: Restore dependency caches and prepare a private toolchain before offline tests.
+inputs:
+  build-cache:
+    description: Restore and save compiled Go artifacts for test jobs.
+    default: 'true'
 runs:
   using: composite
   steps:
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: |
           ${{ env.BATZ_DOWNLOAD_CACHE }}
           ${{ env.GOMODCACHE }}
         key: batz-macos-15-arm64-v1-${{ hashFiles('runtime/dependencies.lock.json', 'ci/prepare-macos.py') }}
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      if: inputs.build-cache == 'true'
       with:
         path: ${{ env.GOCACHE }}
-        key: batz-build-macos-15-arm64-v1-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}-${{ matrix.pipeline }}-${{ github.sha }}
-        restore-keys: |
-          batz-build-macos-15-arm64-v1-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}-${{ matrix.pipeline }}-
+        key: batz-build-macos-15-arm64-v2-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}-${{ matrix.pipeline }}
     - name: Prepare pinned dependencies
       shell: bash
       run: python3 -I ci/prepare-macos.py
