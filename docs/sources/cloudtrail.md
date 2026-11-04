@@ -43,13 +43,12 @@ SELECT event.id, batz.logical_event_id, batz.norm_event_variant_id,
 FROM demo.api_activity;
 ```
 
-CloudTrail's [record definition](https://docs.aws.amazon.com/awscloudtrail/latest/userguide/cloudtrail-event-reference-record-contents.html)
-documents `eventID`, recipient-account scope and addenda. `UPDATED_DATA` names an
-original event and updated fields. This MVP preserves addenda in full; automatic
-patching/supersession is not inferred from arrival order. Source-authoritative
-correction application remains dependent on a separately accepted rule. An
-addendum with a new event ID currently retains that identity; it does not silently
-overwrite an earlier event.
+Automatic AWS correction/addendum handling is **cancelled for MVP**, by owner
+direction on 2026-11-04. Batz will not interpret correction instructions, follow
+original-event references, apply patches or automatically supersede earlier events.
+Any incoming correction record remains ordinary source evidence under the same
+parsing, mapping and identity rules. This feature is not an S4 acceptance gate;
+reintroducing it would require a new scope decision.
 
 The ordinary run report counts input acquisition and event reconciliation
 separately. All published revisions retain exact committed membership, original

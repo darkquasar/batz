@@ -25,8 +25,9 @@ local/CI scope and the external toolchain option.
 Describe the accepted input format, supported events, output meaning, timestamp
 semantics and limitations. Declare source input fingerprinting separately from
 event identity. For event identity, document the key fields, tenant/device/account
-scope, missing-key fallback, content comparison and explicit source correction
-rules. Extract the key in staging SQL and reconcile in normalized SQL. A source
+scope, missing-key fallback and content comparison. Automatic AWS correction
+handling is cancelled for MVP; pipeline additions need no correction engine.
+Extract the key in staging SQL and reconcile in normalized SQL. A source
 without reliable identity should keep separate observations; it remains a valid
 MVP pipeline. Keep saved-file import and live acquisition scopes
 explicit. New sources or transports need their applicable acceptance requirements.
