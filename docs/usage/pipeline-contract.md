@@ -43,8 +43,35 @@ Output models use the nested investigation profile, including `TIMESTAMP_NS`
 `@timestamp`, nested `ecs`, `event` and `batz`, exact build identity and source
 payload/origin references. Batz verifies the common schema, exact staging and
 mapped-origin membership, accounting and evaluated build evidence. Distinct
-outputs may share observations. The current observation contract uses one origin
-per output row; reconciliation and multi-origin rows remain S4 work.
+outputs may share observations. A normalized row may have multiple origins. Each origin carries
+`source_event_id`, `parsed_revision`, `file` and `row`; exact mapped membership
+is verified across every origin and declared dataset. The internal parsed envelope
+still calls its acquisition identifier `observation_id`; staging exposes it as
+`batz.source_event_id` and output origins use the public name.
+
+Pipeline SQL owns event identity and reconciliation. Staging can expose a `batz`
+struct with `source_event_id`, nullable `logical_event_id` and
+`norm_event_variant_id`, all VARCHAR. The logical identity includes the binding
+and the source's declared scope. Variant identity combines the logical identity
+and canonical full source payload; acquisition timestamps and origins do not
+participate. When logical identity is unavailable, preserve observations separately.
+JSON object order/formatting is normalized by the collector while numbers retain
+all supplied digits and arrays retain order. Different numeric representations
+are conservatively distinct.
+
+Normalized rows expose the same three optional VARCHAR keys, and may expose a
+BOOLEAN `batz.conflict`. A combined row has null top-level `source_event_id` and
+retains every identifier in `batz.origins[].source_event_id`. Conflicting variants
+remain visible in the default dataset. Fields may be omitted by pipelines without
+an identity policy; missing keys never prevent an otherwise valid pipeline from
+normalizing. Shared publication checks still require complete source lineage and
+correct payload membership. The synthetic pipeline deliberately supplies no logical
+identity and demonstrates this fallback.
+
+This is a documented alpha origin-field revision from `observation_id` to
+`source_event_id` in newly generated normalized rows. Retained published catalogs
+are immutable. They retain their original schema; inspect the revision selected.
+Run-report and inventory accounting fields are optional schema additions.
 
 Production skips contributor unit tests. Production identity includes the selected
 resolved route contract, native config, runtime/coordinator identities and copied

@@ -244,6 +244,28 @@ func TestCompletedBatchRecoversWithoutSourceAccess(t *testing.T) {
 	}
 }
 
+func TestRecoveryCannotSubstituteAnInputOutsideTheFrozenSelection(t *testing.T) {
+	root, db := stateFixture(t)
+	verified := parsedReceipt(t, root, "one")
+	if err := markCollectionComplete(verified.stage); err != nil {
+		t.Fatal(err)
+	}
+	input := verified.receipt.Inputs[0]
+	input.SHA256 = hash([]byte("different frozen evidence"))
+	req := Request{Workspace: filepath.Dir(root), Binding: "demo", Definition: "definition", Route: "local", Source: input.Locator, Selected: []contracts.InputRef{input}, Project: filepath.Join(root, "missing-model-project")}
+	if _, err := db.Exec("UPDATE bindings SET selection=? WHERE id='demo'", string(encode([]string{req.Definition, req.Route, req.Source}))); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveRun(db, root, req, contracts.RunReport{Identity: verified.receipt.Identity, Outcome: "running"}); err != nil {
+		t.Fatal(err)
+	}
+	req.Retry = true
+	report, err := Execute(context.Background(), req)
+	if err == nil || report.AcquisitionComplete || report.ParsedRevision != nil || report.Exit != 4 {
+		t.Fatalf("recovery substituted unselected content: %+v %v", report, err)
+	}
+}
+
 func TestNormalizedCommitIncludesRunStatus(t *testing.T) {
 	root, db := stateFixture(t)
 	verified := parsedReceipt(t, root, "one")

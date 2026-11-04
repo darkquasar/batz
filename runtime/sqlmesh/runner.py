@@ -67,10 +67,12 @@ _REQUIRED_TYPES = {
     "batz.input_revision": "varchar", "batz.input_digest": "varchar",
     "batz.attempt_id": "varchar", "batz.evaluation_nonce": "varchar",
     "batz.origins": "list", "batz.origins[]": "struct",
-    "batz.origins[].observation_id": "varchar", "batz.origins[].parsed_revision": "varchar",
+    "batz.origins[].source_event_id": "varchar", "batz.origins[].parsed_revision": "varchar",
     "batz.origins[].file": "varchar", "batz.origins[].row": "bigint",
 }
 _OPTIONAL_TYPES = {
+    "batz.source_event_id": "varchar", "batz.logical_event_id": "varchar",
+    "batz.norm_event_variant_id": "varchar", "batz.conflict": "boolean",
     "event.id": "varchar", "event.outcome": "varchar", "event.provider": "varchar",
     "event.category": "list", "event.category[]": "varchar",
     "event.type": "list", "event.type[]": "varchar",
@@ -134,18 +136,40 @@ def verify_published(reader, binding, request, expected_observations, proof):
         invalid = reader.execute("SELECT count(*) FROM " + table + " WHERE "
             "batz.input_revision IS DISTINCT FROM ? OR batz.input_digest IS DISTINCT FROM ? OR "
             "batz.attempt_id IS DISTINCT FROM ? OR batz.evaluation_nonce IS DISTINCT FROM ? OR "
-            "len(batz.origins) IS DISTINCT FROM 1",
+            "coalesce(len(batz.origins),0)<1",
             [request[k] for k in ("input_revision", "input_digest", "attempt_id", "evaluation_nonce")]).fetchone()[0]
         if invalid:
             raise RequiredCheck("required published identity/origin assertion failed")
         output_origins = Counter(reader.execute(
-            "SELECT batz.origins[1].observation_id,batz.origins[1].parsed_revision,"
-            "batz.origins[1].file,batz.origins[1].row,batz.source_payload FROM " + table).fetchall())
+            "SELECT origin.source_event_id,origin.parsed_revision,"
+            "origin.file,origin.row,batz.source_payload FROM " + table + ",unnest(batz.origins) AS u(origin)").fetchall())
         if output_origins - expected_mapped:
             raise RequiredCheck("required exact mapped membership/origin assertion failed")
         actual_origins |= output_origins
     if actual_origins != expected_mapped or sum(actual_origins.values()) != proof[5]:
         raise RequiredCheck("required exact mapped membership/origin assertion failed")
+
+
+def reconciliation_counts(reader, binding):
+    staging = binding + ".source_staging"
+    columns = {c[0]: c[1] for c in reader.execute("SELECT * FROM " + staging + " LIMIT 0").description}
+    native = columns.get("batz")
+    fields = dict(native.children) if native is not None and native.id == "struct" else {}
+    logical = "batz.logical_event_id" if str(fields.get("logical_event_id", "")).lower() == "varchar" else "NULL::VARCHAR"
+    variant = "batz.norm_event_variant_id" if str(fields.get("norm_event_variant_id", "")).lower() == "varchar" else "NULL::VARCHAR"
+    rows = reader.execute("SELECT observation_id," + logical + "," + variant + " FROM " + staging + " WHERE mapping_status='mapped'").fetchall()
+    groups = {}
+    variants = set()
+    unidentified = 0
+    for source_id, event_id, variant_id in rows:
+        variant_key = (event_id, variant_id) if event_id and variant_id else (None, source_id)
+        variants.add(variant_key)
+        if event_id:
+            groups.setdefault(event_id, set()).add(variant_key)
+        else:
+            unidentified += 1
+    return dict(observations=len(rows), variants=len(variants), logical_events=len(groups),
+                conflicting_events=sum(len(v)>1 for v in groups.values()), unidentified_observations=unidentified)
 
 
 def check_build(request, expected_rows, proof_rows, check_rows):
@@ -282,9 +306,10 @@ def main(request_path):
     request["reject_path"] = str(reject_path)
     verify_published(reader, binding, request, expected_observations, proof)
     reject_rows = reader.execute("SELECT count(*) FROM read_parquet(?)", [str(reject_path)]).fetchone()[0]
+    reconciliation = reconciliation_counts(reader, binding)
     reader.close()
     sync(catalog)
-    result = {"input_revision": request["input_revision"], "input_digest": request["input_digest"],
+    result = {"reconciliation": reconciliation, "input_revision": request["input_revision"], "input_digest": request["input_digest"],
               "attempt_id": request["attempt_id"], "evaluation_nonce": request["evaluation_nonce"],
               "datasets": datasets, "catalog": file_ref(catalog, artifact_root, 0),
               "rejects": [file_ref(reject_path, artifact_root, reject_rows)],

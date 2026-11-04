@@ -92,6 +92,7 @@ func recoverParsed(db *sql.DB, root string, req Request, current contracts.RunID
 					return nil, err
 				}
 				recovered = &inventory
+				remainingSelection(recovered, original, report.Identity.Run)
 			}
 			continue
 		}
@@ -142,7 +143,16 @@ func recoverParsed(db *sql.DB, root string, req Request, current contracts.RunID
 		if err := decodeWire(contextBytes, &expected); err != nil {
 			return recoveryFailure(db, root, original, report, err)
 		}
-		if !reflect.DeepEqual(expected.Identity, report.Identity) || expected.Input.Locator != original.Source {
+		selected := expected.Input.Locator == original.Source
+		if original.Selected != nil {
+			selected = false
+			for _, input := range original.Selected {
+				if input == expected.Input {
+					selected = true
+				}
+			}
+		}
+		if !reflect.DeepEqual(expected.Identity, report.Identity) || !selected {
 			return recoveryFailure(db, root, original, report, errors.New("interrupted collection identity mismatch"))
 		}
 		expected.Stage, expected.Source = stage, filepath.Join(stage, "input.json")
@@ -160,6 +170,7 @@ func recoverParsed(db *sql.DB, root string, req Request, current contracts.RunID
 			return recoveryFailure(db, root, original, report, err)
 		}
 		recovered = &inventory
+		remainingSelection(recovered, original, report.Identity.Run)
 	}
 	return recovered, nil
 }
@@ -174,4 +185,27 @@ func recoveryFailure(db *sql.DB, root string, req Request, report contracts.RunR
 		return nil, errors.Join(cause, err)
 	}
 	return nil, cause
+}
+
+// Resume only the interrupted finite selection. Later directory arrivals wait
+// for a subsequent run; already committed inputs from this run are not replayed.
+func remainingSelection(inventory *committedInventory, original Request, run contracts.RunID) {
+	if original.Selected == nil {
+		return
+	}
+	inventory.selected = []contracts.InputRef{}
+	inventory.replay = original.Replay
+	acquired := map[string]bool{}
+	for _, receipt := range inventory.receipts {
+		if receipt.Identity.Run == run {
+			for _, input := range receipt.Inputs {
+				acquired[input.ID] = true
+			}
+		}
+	}
+	for _, input := range original.Selected {
+		if !acquired[input.ID] {
+			inventory.selected = append(inventory.selected, input)
+		}
+	}
 }

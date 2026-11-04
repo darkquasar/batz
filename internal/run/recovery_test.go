@@ -110,6 +110,35 @@ func recoveryRequest(t *testing.T) Request {
 
 }
 
+func TestAppDirectoryRecoveryFinishesFrozenSelectionBeforeLaterArrivals(t *testing.T) {
+	req := recoveryRequest(t)
+	data, err := os.ReadFile(req.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	for _, name := range []string{"A.jsonl", "B.jsonl"} {
+		if err := os.WriteFile(filepath.Join(directory, name), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	req.Source = directory
+	stopAtCheckpoint(t, req, "after-receipt")
+	// This arrival was not in the interrupted run's finite selection.
+	if err := os.WriteFile(filepath.Join(directory, "C.jsonl"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Execute(context.Background(), req)
+	if err != nil || report.Outcome != "published" || report.Counts[0].Accepted != 4 || len(report.Inputs) != 2 {
+		t.Fatalf("recovery failed to finish exact frozen membership: %+v %v", report, err)
+	}
+	stopAtCheckpoint(t, req, "after-parsed-commit")
+	status, err := ReadStatus(req.Workspace, "")
+	if err != nil || len(status.Run.Inputs) != 3 || status.Run.Counts[0].Accepted != 6 {
+		t.Fatalf("later arrival was lost or earlier files reacquired: %+v %v", status, err)
+	}
+}
+
 func TestAppRestartAtParsedCheckpointsCommitsOneBatch(t *testing.T) {
 	for _, point := range []string{"after-receipt", "after-placement", "before-parsed-commit", "after-parsed-commit"} {
 		t.Run(point, func(t *testing.T) {

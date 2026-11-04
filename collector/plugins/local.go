@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"batz/internal/contracts"
@@ -151,6 +152,21 @@ func (s *sink) Write(_ context.Context, m *service.Message) error {
 		r.RejectReason = "record must be a JSON object"
 		j.rejects = append(j.rejects, r)
 	} else {
+		// Canonical object order makes content comparison independent of JSON
+		// formatting. UseNumber preserves supplied integers and decimal digits.
+		decoder := json.NewDecoder(strings.NewReader(value.Payload))
+		decoder.UseNumber()
+		var canonical map[string]any
+		if err := decoder.Decode(&canonical); err != nil {
+			j.failure = err
+			return nil
+		}
+		payload, err := json.Marshal(canonical)
+		if err != nil {
+			j.failure = err
+			return nil
+		}
+		r.Payload = string(payload)
 		j.rows = append(j.rows, r)
 	}
 	return nil

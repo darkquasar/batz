@@ -23,7 +23,12 @@ local/CI scope and the external toolchain option.
 ## 1. Define the source contract
 
 Describe the accepted input format, supported events, output meaning, timestamp
-semantics and limitations. Keep saved-file import and live acquisition scopes
+semantics and limitations. Declare source input fingerprinting separately from
+event identity. For event identity, document the key fields, tenant/device/account
+scope, missing-key fallback, content comparison and explicit source correction
+rules. Extract the key in staging SQL and reconcile in normalized SQL. A source
+without reliable identity should keep separate observations; it remains a valid
+MVP pipeline. Keep saved-file import and live acquisition scopes
 explicit. New sources or transports need their applicable acceptance requirements.
 
 Check whether existing framing handles the source's native format. Current

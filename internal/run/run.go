@@ -26,6 +26,10 @@ import (
 )
 
 type Request struct {
+	Replay   bool                 `json:"replay,omitempty"`
+	Selected []contracts.InputRef `json:"selected,omitempty"`
+	Expected *contracts.InputRef  `json:"expected,omitempty"`
+
 	Scope          contracts.NativeScope            `json:"scope"`
 	Contract       contracts.ExecutionContract      `json:"contract"`
 	PrivateScratch string                           `json:"private_scratch"`
@@ -54,7 +58,7 @@ func failure(code int, category string, err error) error {
 	return &Failure{Code: code, Category: category, Message: err.Error()}
 }
 func Limits() contracts.Limits {
-	return contracts.Limits{InputFiles: 1, InputBytes: 16 << 20, Records: 10000, CollectionSeconds: 120, ModelSeconds: 300, DuckDBThreads: 1, ScratchBytes: 1 << 30, CollectionSlots: 1, ModelSlots: 1}
+	return contracts.Limits{InputFiles: 128, InputBytes: 16 << 20, Records: 10000, CollectionSeconds: 120, ModelSeconds: 300, DuckDBThreads: 1, ScratchBytes: 1 << 30, CollectionSlots: 1, ModelSlots: 1}
 }
 func id() string {
 	var b [16]byte
@@ -164,6 +168,8 @@ type member struct {
 	Revision contracts.RevisionID `json:"revision"`
 }
 type committedInventory struct {
+	selected []contracts.InputRef
+	replay   bool
 	revision contracts.RevisionID
 	digest   string
 	members  []member
@@ -174,15 +180,16 @@ type verifiedReceipt struct {
 	stage   string
 }
 type builtRevision struct {
-	InputRevision contracts.RevisionID `json:"input_revision"`
-	InputDigest   string               `json:"input_digest"`
-	AttemptID     contracts.AttemptID  `json:"attempt_id"`
-	Nonce         string               `json:"evaluation_nonce"`
-	Datasets      []contracts.Dataset  `json:"datasets"`
-	Catalog       contracts.FileRef    `json:"catalog"`
-	Rejects       []contracts.FileRef  `json:"rejects"`
-	Counts        contracts.Counts     `json:"counts"`
-	Checks        bool                 `json:"checks_passed"`
+	Reconciliation *contracts.Reconciliation `json:"reconciliation,omitempty"`
+	InputRevision  contracts.RevisionID      `json:"input_revision"`
+	InputDigest    string                    `json:"input_digest"`
+	AttemptID      contracts.AttemptID       `json:"attempt_id"`
+	Nonce          string                    `json:"evaluation_nonce"`
+	Datasets       []contracts.Dataset       `json:"datasets"`
+	Catalog        contracts.FileRef         `json:"catalog"`
+	Rejects        []contracts.FileRef       `json:"rejects"`
+	Counts         contracts.Counts          `json:"counts"`
+	Checks         bool                      `json:"checks_passed"`
 }
 
 func verifyReceipt(stage string, expected plugins.Request) (verifiedReceipt, error) {
@@ -401,6 +408,9 @@ func execute(ctx context.Context, req Request, checkpoint func(string)) (report 
 	if e != nil {
 		return report, e
 	}
+	if e = checkBindingContract(db, req); e != nil {
+		return report, e
+	}
 	if priorNormalized.Valid {
 		v := contracts.RevisionID(priorNormalized.String)
 		report.NormalizedRevision = &v
@@ -435,17 +445,18 @@ func execute(ctx context.Context, req Request, checkpoint func(string)) (report 
 	}
 	if recovered != nil {
 		inventory = *recovered
+		if !req.Retry && recovered.selected != nil {
+			req.Selected = recovered.selected
+			req.Replay = recovered.replay
+			inventory, e = acquireSelection(ctx, &req, db, artifact, lease, &report, priorParsed, checkpoint)
+		}
 	} else if req.Retry {
 		if !priorParsed.Valid {
 			return report, failure(2, "invalid-input", errors.New("no committed parsed inventory to retry"))
 		}
 		inventory, e = loadInventory(db, report.Identity.Binding, contracts.RevisionID(priorParsed.String))
 	} else {
-		var verified verifiedReceipt
-		verified, e = collect(ctx, req, artifact, lease, &report, checkpoint)
-		if e == nil {
-			inventory, e = publishParsed(db, artifact, verified, priorParsed, checkpoint)
-		}
+		inventory, e = acquireSelection(ctx, &req, db, artifact, lease, &report, priorParsed, checkpoint)
 	}
 	if e != nil {
 		return report, e

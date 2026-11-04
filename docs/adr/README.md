@@ -7,4 +7,4 @@ change and retain the previous accepted text in Git history.
 
 | ADR | Decision | Status |
 | --- | --- | --- |
-| [001](0001-test-at-the-cheapest-sufficient-layer.md) | Keep the test surface small and compositional | Accepted 2026-10-29; amended 2026-10-30 |
+| [001](0001-test-at-the-cheapest-sufficient-layer.md) | Keep the test surface small and compositional | Accepted 2026-10-29; amended 2026-10-30 and 2026-11-04 |

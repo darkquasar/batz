@@ -69,21 +69,22 @@ type Dataset struct {
 	Rows    int64     `json:"rows"`
 }
 type PublishedInventory struct {
-	APIVersion    string            `json:"apiVersion"`
-	Kind          string            `json:"kind"`
-	Revision      RevisionID        `json:"revision"`
-	Identity      Identity          `json:"identity"`
-	InputRevision RevisionID        `json:"input_revision"`
-	InputDigest   MembershipDigest  `json:"input_digest"`
-	Inputs        []InputRef        `json:"inputs"`
-	Profile       string            `json:"profile"`
-	Content       map[string]string `json:"content"`
-	Datasets      []Dataset         `json:"datasets"`
-	SourceFiles   []FileRef         `json:"source_files"`
-	RejectFiles   []FileRef         `json:"reject_files"`
-	Counts        []Counts          `json:"counts"`
-	Quality       string            `json:"quality"`
-	Catalog       FileRef           `json:"catalog"`
+	Reconciliation *Reconciliation   `json:"reconciliation,omitempty"`
+	APIVersion     string            `json:"apiVersion"`
+	Kind           string            `json:"kind"`
+	Revision       RevisionID        `json:"revision"`
+	Identity       Identity          `json:"identity"`
+	InputRevision  RevisionID        `json:"input_revision"`
+	InputDigest    MembershipDigest  `json:"input_digest"`
+	Inputs         []InputRef        `json:"inputs"`
+	Profile        string            `json:"profile"`
+	Content        map[string]string `json:"content"`
+	Datasets       []Dataset         `json:"datasets"`
+	SourceFiles    []FileRef         `json:"source_files"`
+	RejectFiles    []FileRef         `json:"reject_files"`
+	Counts         []Counts          `json:"counts"`
+	Quality        string            `json:"quality"`
+	Catalog        FileRef           `json:"catalog"`
 }
 type Limits struct {
 	InputFiles           int64  `json:"input_files"`
@@ -124,7 +125,27 @@ type Coverage struct {
 	Mapped      int64 `json:"mapped"`
 	Unsupported int64 `json:"unsupported"`
 }
+
+// InputAccounting describes this invocation's frozen selection, separately
+// from Inputs, which describes the complete committed evidence history.
+type InputAccounting struct {
+	New      []InputRef `json:"new"`
+	Changed  []InputRef `json:"changed"`
+	Skipped  []InputRef `json:"skipped"`
+	Replayed []InputRef `json:"replayed"`
+	Acquired []InputRef `json:"acquired"`
+}
+
+type Reconciliation struct {
+	Observations             int64 `json:"observations"`
+	Variants                 int64 `json:"variants"`
+	LogicalEvents            int64 `json:"logical_events"`
+	ConflictingEvents        int64 `json:"conflicting_events"`
+	UnidentifiedObservations int64 `json:"unidentified_observations"`
+}
 type RunReport struct {
+	Acquisition         *InputAccounting         `json:"acquisition,omitempty"`
+	Reconciliation      *Reconciliation          `json:"reconciliation,omitempty"`
 	Resources           map[string]ResourceUsage `json:"resources"`
 	APIVersion          string                   `json:"apiVersion"`
 	Kind                string                   `json:"kind"`

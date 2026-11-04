@@ -19,7 +19,8 @@ runtime/.local/batz run pipelines/aws-cloudtrail/pipeline.yaml \
 `repo://pipelines/aws-cloudtrail/fixtures/...` resolves inside this checkout. The bundle contains
 synthetic test data; another explicit regular file path can be selected. Execution
 requires an explicit workspace. Reusing `demo` retains its prior parsed membership;
-S1 rebuilds all of it. Reliable skip/replay/reconciliation is later S4 work.
+Unchanged committed files are skipped; new/changed file contents extend the
+retained membership. See [reruns and replay](runs.md).
 
 ```text
 +-------------+  native Bento  +----------------+  native SQLMesh  +----------------+

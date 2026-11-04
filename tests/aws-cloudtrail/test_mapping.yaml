@@ -6,7 +6,7 @@ test_required_995_valid_5_mapping_rejects:
         SELECT 'row-' || i AS observation_id,
           json_object('eventSource','s3.amazonaws.com','eventName','GetObject',
            'eventType','AwsApiCall','userIdentity',json_object('type','IAMUser'),
-           'eventID', CASE WHEN i<995 THEN to_json('id-' || i) ELSE '42'::JSON END)::VARCHAR AS payload
+           'eventID', to_json('id-' || i),'sourceIPAddress',CASE WHEN i<995 THEN to_json('192.0.2.1') ELSE '42'::JSON END)::VARCHAR AS payload
         FROM range(1000) r(i)
   outputs:
     query:
@@ -72,6 +72,7 @@ test_reviewed_api_read_semantics:
           parsed_revision: revision
           parsed_file: file
           parsed_row: 0
+          batz: {source_event_id: source, logical_event_id: logical, norm_event_variant_id: variant}
     batz_input.build_context:
       rows:
         - {input_revision: revision, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
@@ -100,7 +101,7 @@ test_each_malformed_supported_field_is_rejected:
     query:
       partial: true
       rows:
-        - {observation_id: eventID, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
+        - {observation_id: eventID, mapping_status: mapped, mapping_reject_reason: null}
         - {observation_id: awsRegion, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
         - {observation_id: accountId, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
         - {observation_id: sourceIPAddress, mapping_status: rejected, mapping_reject_reason: invalid-supported-field}
@@ -126,12 +127,12 @@ test_semantic_oracle_rejects_wrong_action_actor_time_and_outcome:
         ecs: STRUCT(version VARCHAR)
         user: STRUCT(id VARCHAR)
         '"@timestamp"': TIMESTAMP_NS
-        batz: STRUCT(origins STRUCT(observation_id VARCHAR)[],time STRUCT(original VARCHAR,fraction_digits INTEGER))
+        batz: STRUCT(origins STRUCT(source_event_id VARCHAR)[],time STRUCT(original VARCHAR,fraction_digits INTEGER))
       query: |
         SELECT {'action':action,'kind':'event','outcome':outcome} AS event,
          {'version':'9.5.0'} AS ecs, {'id':actor} AS "user",
          make_timestamp_ns(1792929600000000000+shift_ns) AS "@timestamp",
-         {'origins':[{'observation_id':id}], 'time':{'original':'2026-10-25T12:00:00Z','fraction_digits':0}} AS batz
+         {'origins':[{'source_event_id':id}], 'time':{'original':'2026-10-25T12:00:00Z','fraction_digits':0}} AS batz
         FROM (VALUES
          ('action','wrong','reviewed-actor',0,'success'),
          ('actor','object-read','wrong-actor',0,'success'),

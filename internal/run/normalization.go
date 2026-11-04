@@ -46,7 +46,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	content["execution-scope"] = hash(encode(req.Scope))
 	content["pipeline"] = hash(encode(req.Contract))
 	report.Content = content
-	if req.Retry && priorNormalized.Valid {
+	if priorNormalized.Valid {
 		var raw []byte
 		if e := db.QueryRow("SELECT inventory FROM normalized WHERE revision=? AND binding=?", priorNormalized.String, req.Binding).Scan(&raw); e != nil {
 			return report, e
@@ -124,7 +124,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 		sources = append(sources, r.SourceFiles...)
 		rejects = append(rejects, r.RejectFiles...)
 	}
-	published := contracts.PublishedInventory{APIVersion: contracts.APIVersion, Kind: "PublishedInventory", Revision: revision, Identity: report.Identity, InputRevision: inventory.revision, InputDigest: contracts.MembershipDigest(inventory.digest), Inputs: allInputs, Profile: contracts.Profile, Content: content, Datasets: built.Datasets, SourceFiles: sources, RejectFiles: rejects, Counts: report.Counts, Quality: quality, Catalog: built.Catalog}
+	published := contracts.PublishedInventory{Reconciliation: built.Reconciliation, APIVersion: contracts.APIVersion, Kind: "PublishedInventory", Revision: revision, Identity: report.Identity, InputRevision: inventory.revision, InputDigest: contracts.MembershipDigest(inventory.digest), Inputs: allInputs, Profile: contracts.Profile, Content: content, Datasets: built.Datasets, SourceFiles: sources, RejectFiles: rejects, Counts: report.Counts, Quality: quality, Catalog: built.Catalog}
 	if e = writeJSON(filepath.Join(output, "inventory.json"), published); e != nil {
 		return report, e
 	}
@@ -146,6 +146,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 
 func applyPublication(root string, published contracts.PublishedInventory, report contracts.RunReport) contracts.RunReport {
 	report.Outcome = "published"
+	report.Reconciliation = published.Reconciliation
 	report.Quality = &published.Quality
 	report.NormalizedRevision = &published.Revision
 	report.Counts = published.Counts
@@ -180,6 +181,11 @@ func verifyBuilt(artifact string, built builtRevision, inventory committedInvent
 	}
 	if remaining != 0 {
 		return failure(4, "integrity", errors.New("unaccounted committed observations"))
+	}
+	if r := built.Reconciliation; r != nil {
+		if r.Observations != built.Counts.Accepted || r.Variants < 0 || r.Variants > r.Observations || r.LogicalEvents < 0 || r.LogicalEvents > r.Variants || r.ConflictingEvents < 0 || r.ConflictingEvents > r.LogicalEvents || r.UnidentifiedObservations < 0 || r.UnidentifiedObservations > r.Observations {
+			return failure(4, "integrity", errors.New("invalid reconciliation accounting"))
+		}
 	}
 	rejectRows := built.Counts.Rejected
 	for _, file := range built.Rejects {

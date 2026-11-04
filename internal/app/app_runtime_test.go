@@ -400,7 +400,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if got := string(query(t, root, *other.Catalog, "SELECT count(*) FROM other.findings")); got != "[[1]]" {
 		t.Fatal(got)
 	}
-	if got := string(query(t, root, *recovered.Catalog, `SELECT count(*),count(DISTINCT batz.origins[1].observation_id),count(DISTINCT batz.input_digest),count(DISTINCT batz.evaluation_nonce),min(year("@timestamp")) FROM demo.findings`)); got != "[[7,7,1,1,2020]]" {
+	if got := string(query(t, root, *recovered.Catalog, `SELECT count(*),count(DISTINCT batz.origins[1].source_event_id),count(DISTINCT batz.input_digest),count(DISTINCT batz.evaluation_nonce),min(year("@timestamp")) FROM demo.findings`)); got != "[[7,7,1,1,2020]]" {
 		t.Fatalf("exact fresh membership: %s", got)
 	}
 	if got := string(query(t, root, *recovered.Catalog, "SELECT DISTINCT shared_count FROM demo.findings")); got != "[[7]]" {

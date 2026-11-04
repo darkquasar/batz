@@ -46,7 +46,7 @@ def field(name, native):
             'fields': children}
 
 
-volatile = {'observation_id', 'run_id', 'batch_id', 'attempt_id', 'input_id',
+volatile = {'observation_id', 'source_event_id', 'norm_event_variant_id', 'run_id', 'batch_id', 'attempt_id', 'input_id',
             'input_locator', 'acquired_at', 'parsed_revision', 'parsed_file',
             'input_revision', 'input_digest', 'evaluation_nonce'}
 def separate(value, path, runtime):

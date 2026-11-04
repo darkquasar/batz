@@ -204,7 +204,7 @@ func TestE2ETinyMixedNativeWiringRetainsStrictPartial(t *testing.T) {
 	var err error
 	input := filepath.Join(t.TempDir(), "mixed.json")
 	valid, bad, unsupported := sourceRecords(t), sourceRecords(t), sourceRecords(t)
-	bad["eventID"] = 42
+	bad["sourceIPAddress"] = 42
 	unsupported["eventName"] = "PutObject"
 	writeRecords(t, input, []map[string]any{valid, bad, unsupported, nil})
 	nativePath := filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml")

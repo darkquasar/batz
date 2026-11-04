@@ -59,6 +59,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	bindingFile := fs.String("binding", "", "saved binding")
 	caseFile := fs.String("case", "", "explicit case")
 	interactive := fs.Bool("interactive", false, "prompt for missing values")
+	replay := fs.Bool("replay", false, "acquire the complete selected set again")
 	strict := fs.Bool("strict", false, "fail command for published partial")
 	retryRun := fs.String("run-id", "", "pin retry to the failed run's current parsed inventory")
 	values := inputs{}
@@ -74,6 +75,9 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	}
 	if fs.NArg() != 0 {
 		return diagnostic(2, "unexpected positional arguments")
+	}
+	if *replay && modelsOnly {
+		return diagnostic(2, "--replay is only valid for run")
 	}
 	if *retryRun != "" && !modelsOnly {
 		return diagnostic(2, "--run-id is only valid for retry")
@@ -278,7 +282,7 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if !regexp.MustCompile("^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$").MatchString(*binding) {
 		return diagnostic(2, "invalid binding ID")
 	}
-	report, err := pipeline.Execute(ctx, pipeline.Request{Scope: scope, Contract: manifest.Execution(*route), CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict, Retry: modelsOnly, RetryRun: contracts.RunID(*retryRun), Resolution: selection.Origins})
+	report, err := pipeline.Execute(ctx, pipeline.Request{Scope: scope, Contract: manifest.Execution(*route), CaseID: selection.CaseID, Root: *project, Workspace: *workspace, Definition: definition, Route: *route, Source: source, Binding: *binding, NativeConfig: native, Project: models, Strict: *strict, Replay: *replay, Retry: modelsOnly, RetryRun: contracts.RunID(*retryRun), Resolution: selection.Origins})
 	report.Resolution = selection.Origins
 	if e := json.NewEncoder(stdout).Encode(report); e != nil {
 		return diagnostic(1, e.Error())

@@ -1,6 +1,6 @@
 # ADR-001: Keep the test surface small and compositional
 
-Status: Accepted 2026-10-29; amended 2026-10-30 by owner direction.
+Status: Accepted 2026-10-29; amended 2026-10-30 and 2026-11-04 by owner direction.
 Scope: Batz application, pipeline development and CI.
 This dated amendment extends the original cheapest-sufficient-layer decision;
 it replaces the blanket testing strategy with explicit ownership/selection rules.
@@ -17,9 +17,10 @@ ownership, selection and parallel execution explicit.
 
 ## Decision
 
-**Prove each shared guarantee once at its cheapest sufficient interface. New
-pipelines add distinct mapping/adapter evidence and representative E2E coverage;
-they do not duplicate the application test suite.**
+**Test at the cheapest sufficient layer. Prove each shared guarantee once at its
+cheapest sufficient interface. New pipelines add distinct source/mapping evidence
+and representative wiring coverage when justified; they do not duplicate the
+application test suite.**
 
 | Behavior | Sufficient proof |
 | --- | --- |
@@ -84,6 +85,19 @@ they do not duplicate the application test suite.**
 Before adding a test, identify the new failure it catches, the cheapest sufficient
 layer, and whether an existing fixture/journey can carry the assertion. These are
 review questions, not a new approval process or mandatory per-test paperwork.
+
+### Owner amendment 2026-11-04: each pipeline's contribution
+
+Shared framework tests own lifecycle, crash/recovery, ownership and publication
+guarantees. A routine pipeline addition reuses those guarantees without repeating
+their test matrices. It contributes focused source parsing, adapter/acquisition,
+mapping, time interpretation and identity evidence, plus representative wiring
+where an integration risk justifies it. Source-specific behavior needs its own
+distinguishing evidence. Routine additions do not require catalog-wide E2E;
+selection follows rule 5. Reuse existing fixtures/journeys for compatible assertions.
+
+"Cheapest" still means sufficient to prove the claimed boundary: the real
+process/storage, native transport and precision requirements above remain in force.
 
 ## Consequences and evidence
 

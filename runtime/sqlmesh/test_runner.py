@@ -54,7 +54,7 @@ class PublishedMembership(unittest.TestCase):
         self.connection.execute("""CREATE TABLE demo.output AS SELECT
           make_timestamp_ns(1792929600000000001) AS "@timestamp",
           {'version':'9.5.0'} AS ecs, {'kind':'event','action':'observed'} AS event,
-          {'origins':[{'observation_id':observation_id,'parsed_revision':parsed_revision,'file':parsed_file,'row':parsed_row}],
+          {'origins':[{'source_event_id':observation_id,'parsed_revision':parsed_revision,'file':parsed_file,'row':parsed_row}],
            'source_payload':payload,'input_revision':'revision','input_digest':'digest','attempt_id':'attempt','evaluation_nonce':'nonce'} AS batz
           FROM demo.source_staging""")
         self.request = dict(input_revision='revision', input_digest='digest', attempt_id='attempt', evaluation_nonce='nonce', contract={'outputs': {'output': 'probe.output'}})
@@ -72,6 +72,16 @@ class PublishedMembership(unittest.TestCase):
         self.verify()
         self.assertEqual(self.connection.execute('SELECT typeof("@timestamp"),epoch_ns("@timestamp") FROM demo.output').fetchone(), ('TIMESTAMP_NS', 1792929600000000001))
 
+    def test_reconciled_row_retains_every_exact_mapped_origin(self):
+        self.connection.execute("INSERT INTO demo.source_staging SELECT 'repeat',parsed_revision,parsed_file,1,payload,mapping_status,mapping_reject_reason FROM demo.source_staging")
+        self.expected.update([('repeat', 'revision', 'file', 1, '{}')])
+        self.proof = (*self.proof[:4], 2, 2, 0, 0)
+        self.connection.execute("UPDATE demo.output SET batz=struct_update(batz,origins := list_concat(batz.origins,[{'source_event_id':'repeat','parsed_revision':'revision','file':'file','row':1}]))")
+        self.verify()
+        self.connection.execute("UPDATE demo.output SET batz=struct_update(batz,origins := list_concat(batz.origins,[batz.origins[1]]))")
+        with self.assertRaises(bridge.RequiredCheck):
+            self.verify()
+
     def test_equal_count_duplicate_staging_is_not_membership(self):
         self.connection.execute("UPDATE demo.source_staging SET observation_id='foreign'")
         with self.assertRaises(bridge.RequiredCheck):
@@ -83,7 +93,7 @@ class PublishedMembership(unittest.TestCase):
             self.verify()
 
     def test_wrong_lineage_is_rejected(self):
-        self.connection.execute("UPDATE demo.output SET batz=struct_update(batz,origins := [{'observation_id':'observation','parsed_revision':'old','file':'file','row':0}])")
+        self.connection.execute("UPDATE demo.output SET batz=struct_update(batz,origins := [{'source_event_id':'observation','parsed_revision':'old','file':'file','row':0}])")
         with self.assertRaises(bridge.RequiredCheck):
             self.verify()
 

@@ -55,6 +55,35 @@ func TestRejectedElementsRetainActualPayloadAndReason(t *testing.T) {
 	}
 }
 
+func TestSourcePayloadComparisonIgnoresObjectOrderWithoutLosingNumbers(t *testing.T) {
+	root := t.TempDir()
+	source := filepath.Join(root, "input.json")
+	if err := os.WriteFile(source, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	job := Job{Request: Request{Stage: root, Source: source, Limits: contracts.Limits{Records: 2}}, eof: true, ack: true}
+	output := sink{job: &job}
+	for ordinal, payload := range []string{`{"z":{"b":9007199254740993,"a":1},"a":[2,1]}`, ` {"a":[2,1],"z":{"a":1,"b":9007199254740993}} `} {
+		message, err := json.Marshal(map[string]any{"payload": payload, "ordinal": ordinal})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := output.Write(context.Background(), service.NewMessage(message)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := job.Finish(); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := parquet.ReadFile[Record](filepath.Join(root, "parsed.parquet"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows) != 2 || rows[0].Payload != rows[1].Payload || rows[0].Payload != `{"a":[2,1],"z":{"a":1,"b":9007199254740993}}` {
+		t.Fatalf("object ordering or exact number lost: %+v", rows)
+	}
+}
+
 func TestIncompleteCollectionCannotProduceReceipt(t *testing.T) {
 	for _, tc := range []struct {
 		name string
