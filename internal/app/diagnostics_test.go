@@ -15,7 +15,7 @@ func TestPreflightEmitsStructuredDiagnostic(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, stderr bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root}, &out, &stderr)
+	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root}, &out, &stderr)
 	var diagnostic contracts.Diagnostic
 	if err = json.Unmarshal(stderr.Bytes(), &diagnostic); err != nil {
 		t.Fatalf("unstructured diagnostic: %s", &stderr)

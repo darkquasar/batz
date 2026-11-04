@@ -165,6 +165,12 @@
       "additionalProperties": {
         "$ref": "common.schema.json#/$defs/resource_usage"
       }
+    },
+    "reconciliation": {
+      "$ref": "common.schema.json#/$defs/reconciliation"
+    },
+    "acquisition": {
+      "$ref": "common.schema.json#/$defs/inputAccounting"
     }
   },
   "required": [

@@ -11,7 +11,9 @@ from pathlib import Path
 import sys
 
 import duckdb
-from sqlmesh import Context
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from catalog import load_context, execution_scope, scope_record, admitted_files, configure_private
 
 
 class RequiredCheck(ValueError):
@@ -53,7 +55,7 @@ def validate_contract(context, contract):
         raise RequiredCheck("missing or duplicate required model references")
     for name in names:
         context.get_model(name, raise_if_missing=True)
-    return names
+    return execution_scope(context, contract, contract["pipeline"])
 
 
 # Versioned minimum common profile. Optional canonical fields, when supplied,
@@ -65,10 +67,12 @@ _REQUIRED_TYPES = {
     "batz.input_revision": "varchar", "batz.input_digest": "varchar",
     "batz.attempt_id": "varchar", "batz.evaluation_nonce": "varchar",
     "batz.origins": "list", "batz.origins[]": "struct",
-    "batz.origins[].observation_id": "varchar", "batz.origins[].parsed_revision": "varchar",
+    "batz.origins[].source_event_id": "varchar", "batz.origins[].parsed_revision": "varchar",
     "batz.origins[].file": "varchar", "batz.origins[].row": "bigint",
 }
 _OPTIONAL_TYPES = {
+    "batz.source_event_id": "varchar", "batz.logical_event_id": "varchar",
+    "batz.norm_event_variant_id": "varchar", "batz.conflict": "boolean",
     "event.id": "varchar", "event.outcome": "varchar", "event.provider": "varchar",
     "event.category": "list", "event.category[]": "varchar",
     "event.type": "list", "event.type[]": "varchar",
@@ -132,18 +136,40 @@ def verify_published(reader, binding, request, expected_observations, proof):
         invalid = reader.execute("SELECT count(*) FROM " + table + " WHERE "
             "batz.input_revision IS DISTINCT FROM ? OR batz.input_digest IS DISTINCT FROM ? OR "
             "batz.attempt_id IS DISTINCT FROM ? OR batz.evaluation_nonce IS DISTINCT FROM ? OR "
-            "len(batz.origins) IS DISTINCT FROM 1",
+            "coalesce(len(batz.origins),0)<1",
             [request[k] for k in ("input_revision", "input_digest", "attempt_id", "evaluation_nonce")]).fetchone()[0]
         if invalid:
             raise RequiredCheck("required published identity/origin assertion failed")
         output_origins = Counter(reader.execute(
-            "SELECT batz.origins[1].observation_id,batz.origins[1].parsed_revision,"
-            "batz.origins[1].file,batz.origins[1].row,batz.source_payload FROM " + table).fetchall())
+            "SELECT origin.source_event_id,origin.parsed_revision,"
+            "origin.file,origin.row,batz.source_payload FROM " + table + ",unnest(batz.origins) AS u(origin)").fetchall())
         if output_origins - expected_mapped:
             raise RequiredCheck("required exact mapped membership/origin assertion failed")
         actual_origins |= output_origins
     if actual_origins != expected_mapped or sum(actual_origins.values()) != proof[5]:
         raise RequiredCheck("required exact mapped membership/origin assertion failed")
+
+
+def reconciliation_counts(reader, binding):
+    staging = binding + ".source_staging"
+    columns = {c[0]: c[1] for c in reader.execute("SELECT * FROM " + staging + " LIMIT 0").description}
+    native = columns.get("batz")
+    fields = dict(native.children) if native is not None and native.id == "struct" else {}
+    logical = "batz.logical_event_id" if str(fields.get("logical_event_id", "")).lower() == "varchar" else "NULL::VARCHAR"
+    variant = "batz.norm_event_variant_id" if str(fields.get("norm_event_variant_id", "")).lower() == "varchar" else "NULL::VARCHAR"
+    rows = reader.execute("SELECT observation_id," + logical + "," + variant + " FROM " + staging + " WHERE mapping_status='mapped'").fetchall()
+    groups = {}
+    variants = set()
+    unidentified = 0
+    for source_id, event_id, variant_id in rows:
+        variant_key = (event_id, variant_id) if event_id and variant_id else (None, source_id)
+        variants.add(variant_key)
+        if event_id:
+            groups.setdefault(event_id, set()).add(variant_key)
+        else:
+            unidentified += 1
+    return dict(observations=len(rows), variants=len(variants), logical_events=len(groups),
+                conflicting_events=sum(len(v)>1 for v in groups.values()), unidentified_observations=unidentified)
 
 
 def check_build(request, expected_rows, proof_rows, check_rows):
@@ -171,14 +197,11 @@ def main(request_path):
     project = Path(request["project"])
     state = Path(request["model_state"])
     output = Path(request["output"])
-    state.mkdir(parents=True, exist_ok=True)
+    admitted_files(project)
+    state.mkdir(parents=True, exist_ok=False)
+    configure_private(project, state)
     output.mkdir(parents=True, exist_ok=False)
     working = state / "working.duckdb"
-    config = json.loads((project / "config.yaml").read_text())
-    gateway = config["gateways"]["local"]
-    gateway["connection"]["database"] = str(working)
-    gateway["state_connection"]["database"] = str(state / "sqlmesh-state.duckdb")
-    (project / "config.yaml").write_text(json.dumps(config, indent=2) + "\n")
     settings = {"threads": 1,
                 "autoinstall_known_extensions": "false",
                 "autoload_known_extensions": "false"}
@@ -212,15 +235,17 @@ def main(request_path):
         "SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM batz_input.parsed").fetchall())
     connection.close()
 
-    context = Context(paths=[str(project)])
-    validate_contract(context, request["contract"])
-    # Preserve the qualified apply-then-restate semantics, sharing one Context.
-    # No combined-plan optimization is assumed without equivalence evidence.
+    context = load_context("runtime", paths=[str(project)])
+    selected = validate_contract(context, request["contract"])
+    if request.get("scope", {}).get("models") and selected != request["scope"]["models"]:
+        context.close()
+        raise RequiredCheck("execution scope differs from admitted discovery")
+    # Fresh attempt state has no intervals or prior environments to reuse. A
+    # single selected plan evaluates every FULL dependency against exact current
+    # membership; nonce and membership checks below independently prove freshness.
     commands = [{"skip_tests": True, "no_prompts": True, "auto_apply": True,
-                 "execution_time": "2026-01-03"},
-                {"skip_tests": True, "no_prompts": True, "auto_apply": True,
-                 "execution_time": "2026-01-03", "restate_models": ["*"],
-                 "start": "2026-01-01", "end": "2026-01-02"}]
+                 "execution_time": "2026-01-03", "select_models": selected,
+                 "backfill_models": selected}]
     datasets = []
     try:
         for command in commands:
@@ -281,9 +306,10 @@ def main(request_path):
     request["reject_path"] = str(reject_path)
     verify_published(reader, binding, request, expected_observations, proof)
     reject_rows = reader.execute("SELECT count(*) FROM read_parquet(?)", [str(reject_path)]).fetchone()[0]
+    reconciliation = reconciliation_counts(reader, binding)
     reader.close()
     sync(catalog)
-    result = {"input_revision": request["input_revision"], "input_digest": request["input_digest"],
+    result = {"reconciliation": reconciliation, "input_revision": request["input_revision"], "input_digest": request["input_digest"],
               "attempt_id": request["attempt_id"], "evaluation_nonce": request["evaluation_nonce"],
               "datasets": datasets, "catalog": file_ref(catalog, artifact_root, 0),
               "rejects": [file_ref(reject_path, artifact_root, reject_rows)],
@@ -304,10 +330,23 @@ if __name__ == "__main__":
     try:
         request = json.loads(Path(sys.argv[1]).read_text())
         if request.get("validate_only"):
-
-            context = Context(paths=[request["project"]])
+            files = admitted_files(Path(request["project"]))
+            # Use an in-memory override so the hashed admitted config stays exact.
+            from sqlmesh.core.config import Config
+            from ruamel.yaml import YAML
+            config = Config(**YAML(typ="safe").load((Path(request["project"])/"config.yaml").read_text()))
+            gateway = config.gateways["local"]
+            gateway.connection.database = str(Path(request["project"]).parent / "working.duckdb")
+            gateway.state_connection.database = str(Path(request["project"]).parent / "state.duckdb")
+            context = load_context("discovery", paths=[request["project"]], config=config, load_state=False)
             try:
-                validate_contract(context, request["contract"])
+                selected = validate_contract(context, request["contract"])
+                record = scope_record(context, request["contract"], files, selected)
+                Path(request["result"]).write_text(json.dumps(record, sort_keys=True))
+            except ValueError as error:
+                if str(error).startswith("unsupported-input-scope:"):
+                    Path(request["result"]).write_text(json.dumps({"error": "unsupported-input-scope"}))
+                raise
             finally:
                 context.close()
         else:

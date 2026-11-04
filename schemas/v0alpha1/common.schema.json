@@ -359,6 +359,82 @@
         "scratch_peak_bytes"
       ],
       "additionalProperties": false
+    },
+    "inputAccounting": {
+      "type": "object",
+      "properties": {
+        "new": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "changed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "skipped": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "replayed": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        },
+        "acquired": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          }
+        }
+      },
+      "required": [
+        "new",
+        "changed",
+        "skipped",
+        "replayed",
+        "acquired"
+      ],
+      "additionalProperties": false
+    },
+    "reconciliation": {
+      "type": "object",
+      "properties": {
+        "observations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "variants": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conflicting_events": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unidentified_observations": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "observations",
+        "variants",
+        "logical_events",
+        "conflicting_events",
+        "unidentified_observations"
+      ],
+      "additionalProperties": false
     }
   }
 }

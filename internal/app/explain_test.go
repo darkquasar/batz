@@ -15,7 +15,7 @@ func TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "pipelines"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	source, err := os.ReadFile("../../pipelines/aws-cloudtrail.yaml")
+	source, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

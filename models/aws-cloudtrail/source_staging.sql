@@ -33,21 +33,31 @@ WITH source AS (
        OR local_instant IS NULL
        OR (original_offset != 'Z' AND (try_cast(substr(original_offset,2,2) AS INTEGER)>23 OR try_cast(substr(original_offset,5,2) AS INTEGER)>59))
      ) THEN 'rejected'
-     WHEN coalesce(json_type(payload,'$.eventID'),'NULL') NOT IN ('VARCHAR','NULL')
-       OR coalesce(json_type(payload,'$.awsRegion'),'NULL') NOT IN ('VARCHAR','NULL')
+     WHEN coalesce(json_type(payload,'$.awsRegion'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.userIdentity.accountId'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.sourceIPAddress'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.errorCode'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.userIdentity.arn'),'NULL') NOT IN ('VARCHAR','NULL')
-       OR coalesce(json_type(payload,'$.recipientAccountId'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.requestParameters.bucketName'),'NULL') NOT IN ('VARCHAR','NULL')
        OR coalesce(json_type(payload,'$.requestParameters.key'),'NULL') NOT IN ('VARCHAR','NULL')
      THEN 'rejected'
      ELSE 'mapped'
    END AS mapping_status
  FROM times
+), identified AS (
+ SELECT *,
+  CASE WHEN json_type(payload,'$.eventID')='VARCHAR'
+    AND nullif(json_extract_string(payload,'$.eventID'),'') IS NOT NULL
+    AND json_type(payload,'$.recipientAccountId')='VARCHAR'
+    AND nullif(json_extract_string(payload,'$.recipientAccountId'),'') IS NOT NULL
+   THEN sha256(to_json([binding_id,'aws-cloudtrail',
+     json_extract_string(payload,'$.recipientAccountId'),json_extract_string(payload,'$.eventID')]))
+   ELSE NULL::VARCHAR END AS logical_id
+ FROM classified
 )
-SELECT *,
+SELECT * EXCLUDE(logical_id),
+ {'source_event_id':observation_id,'logical_event_id':logical_id,
+  'norm_event_variant_id':sha256(to_json([coalesce(logical_id,observation_id),payload]))} AS batz,
  CASE WHEN mapping_status='mapped' AND original_time IS NOT NULL THEN
   make_timestamp_ns(epoch_ns(local_instant) -
    CASE WHEN original_offset='Z' THEN 0 ELSE
@@ -56,4 +66,4 @@ SELECT *,
    END)
  ELSE NULL::TIMESTAMP_NS END AS occurrence_time,
  CASE WHEN mapping_status='rejected' THEN 'invalid-supported-field' ELSE NULL END AS mapping_reject_reason
-FROM classified;
+FROM identified;

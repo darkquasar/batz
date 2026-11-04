@@ -106,8 +106,37 @@ func recoveryRequest(t *testing.T) Request {
 		t.Fatal(err)
 	}
 	base := filepath.Join(root, "internal/app/testdata/synthetic")
-	return Request{Contract: fixtureContract(t, root), Root: root, Workspace: t.TempDir(), Definition: filepath.Join(base, "pipeline.yaml"), Route: "local_raw", Source: source, Binding: "demo", NativeConfig: filepath.Join(base, "collector.yaml"), Project: filepath.Join(base, "normalization")}
+	return Request{Contract: fixtureContract(t, root), Root: root, Workspace: t.TempDir(), Definition: filepath.Join(base, "pipeline.yaml"), Route: "local_raw", Source: source, Binding: "demo", NativeConfig: filepath.Join(base, "collector.yaml"), Project: root}
 
+}
+
+func TestAppDirectoryRecoveryFinishesFrozenSelectionBeforeLaterArrivals(t *testing.T) {
+	req := recoveryRequest(t)
+	data, err := os.ReadFile(req.Source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	directory := t.TempDir()
+	for _, name := range []string{"A.jsonl", "B.jsonl"} {
+		if err := os.WriteFile(filepath.Join(directory, name), data, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	req.Source = directory
+	stopAtCheckpoint(t, req, "after-receipt")
+	// This arrival was not in the interrupted run's finite selection.
+	if err := os.WriteFile(filepath.Join(directory, "C.jsonl"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	report, err := Execute(context.Background(), req)
+	if err != nil || report.Outcome != "published" || report.Counts[0].Accepted != 4 || len(report.Inputs) != 2 {
+		t.Fatalf("recovery failed to finish exact frozen membership: %+v %v", report, err)
+	}
+	stopAtCheckpoint(t, req, "after-parsed-commit")
+	status, err := ReadStatus(req.Workspace, "")
+	if err != nil || len(status.Run.Inputs) != 3 || status.Run.Counts[0].Accepted != 6 {
+		t.Fatalf("later arrival was lost or earlier files reacquired: %+v %v", status, err)
+	}
 }
 
 func TestAppRestartAtParsedCheckpointsCommitsOneBatch(t *testing.T) {
@@ -310,7 +339,7 @@ func recoveryContent(t *testing.T) string {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
-	for _, name := range []string{"internal/app/testdata/synthetic", "runtime/sqlmesh"} {
+	for _, name := range []string{"internal/app/testdata/synthetic", "runtime/sqlmesh", "config.yaml", "models/synthetic-jsonl"} {
 		err := filepath.WalkDir(filepath.Join(source, name), func(path string, entry os.DirEntry, e error) error {
 			if e != nil {
 				return e
@@ -325,6 +354,9 @@ func recoveryContent(t *testing.T) string {
 			}
 			data, e := os.ReadFile(path)
 			if e != nil {
+				return e
+			}
+			if e := os.MkdirAll(filepath.Dir(target), 0700); e != nil {
 				return e
 			}
 			return os.WriteFile(target, data, 0600)

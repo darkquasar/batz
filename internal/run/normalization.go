@@ -29,16 +29,24 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	if e != nil {
 		return report, e
 	}
-	for name, path := range map[string]string{"collector-config": req.NativeConfig, "runtime-lock": filepath.Join(req.Root, "runtime/dependencies.lock.json"), "model-runner": filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), "coordinator": executable} {
+	for name, path := range map[string]string{"collector-config": req.NativeConfig, "runtime-lock": filepath.Join(req.Root, "runtime/dependencies.lock.json"), "model-runner": filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), "model-catalog": filepath.Join(req.Root, "runtime/sqlmesh/catalog.py"), "coordinator": executable} {
 		ref, e := fileRef(req.Root, path, 0)
 		if e != nil {
 			return report, e
 		}
 		content[name] = ref.SHA256
 	}
+	for name, path := range req.Scope.Sources {
+		digest, ok := content[path]
+		if !ok {
+			return report, failure(4, "integrity", errors.New("discovered source missing from execution snapshot"))
+		}
+		content["model:"+name] = digest
+	}
+	content["execution-scope"] = hash(encode(req.Scope))
 	content["pipeline"] = hash(encode(req.Contract))
 	report.Content = content
-	if req.Retry && priorNormalized.Valid {
+	if priorNormalized.Valid {
 		var raw []byte
 		if e := db.QueryRow("SELECT inventory FROM normalized WHERE revision=? AND binding=?", priorNormalized.String, req.Binding).Scan(&raw); e != nil {
 			return report, e
@@ -67,12 +75,12 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	}
 	revision := contracts.RevisionID(id())
 	nonce := id()
-	bindingHash := hash([]byte(req.Binding))
+	modelState := filepath.Join(attempt, "model-state")
 	output := filepath.Join(artifact, "normalized", string(revision))
 	if e = os.MkdirAll(filepath.Dir(output), 0700); e != nil {
 		return report, e
 	}
-	buildRequest := map[string]any{"contract": req.Contract, "artifact_root": artifact, "project": filepath.Join(attempt, "project"), "model_state": filepath.Join(artifact, "models", bindingHash), "output": output, "members": inventory.members, "input_revision": inventory.revision, "input_digest": inventory.digest, "attempt_id": report.Identity.Attempt, "evaluation_nonce": nonce, "binding_id": req.Binding, "revision": revision}
+	buildRequest := map[string]any{"scope": req.Scope, "contract": req.Contract, "artifact_root": artifact, "project": filepath.Join(attempt, "project"), "model_state": modelState, "output": output, "members": inventory.members, "input_revision": inventory.revision, "input_digest": inventory.digest, "attempt_id": report.Identity.Attempt, "evaluation_nonce": nonce, "binding_id": req.Binding, "revision": revision}
 	requestPath := filepath.Join(attempt, "request.json")
 	if e = writeJSON(requestPath, buildRequest); e != nil {
 		return report, e
@@ -83,9 +91,15 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	}
 	report.Outcome = "normalization-failed"
 	modelCtx, modelCancel := context.WithTimeout(ctx, time.Duration(limits.ModelSeconds)*time.Second)
-	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "models", bindingHash), filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
+	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
 	report.Resources["model"] = modelUsage
 	modelCancel()
+	// SQLMesh state is disposable once its process group has stopped. Preserve
+	// it if settlement failed; logs and requests remain available in all cases.
+	var unsettled unsettledProcessError
+	if !errors.As(e, &unsettled) {
+		e = errors.Join(e, os.RemoveAll(modelState))
+	}
 	if e != nil {
 		return report, modelFailure(e)
 	}
@@ -110,7 +124,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 		sources = append(sources, r.SourceFiles...)
 		rejects = append(rejects, r.RejectFiles...)
 	}
-	published := contracts.PublishedInventory{APIVersion: contracts.APIVersion, Kind: "PublishedInventory", Revision: revision, Identity: report.Identity, InputRevision: inventory.revision, InputDigest: contracts.MembershipDigest(inventory.digest), Inputs: allInputs, Profile: contracts.Profile, Content: content, Datasets: built.Datasets, SourceFiles: sources, RejectFiles: rejects, Counts: report.Counts, Quality: quality, Catalog: built.Catalog}
+	published := contracts.PublishedInventory{Reconciliation: built.Reconciliation, APIVersion: contracts.APIVersion, Kind: "PublishedInventory", Revision: revision, Identity: report.Identity, InputRevision: inventory.revision, InputDigest: contracts.MembershipDigest(inventory.digest), Inputs: allInputs, Profile: contracts.Profile, Content: content, Datasets: built.Datasets, SourceFiles: sources, RejectFiles: rejects, Counts: report.Counts, Quality: quality, Catalog: built.Catalog}
 	if e = writeJSON(filepath.Join(output, "inventory.json"), published); e != nil {
 		return report, e
 	}
@@ -132,6 +146,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 
 func applyPublication(root string, published contracts.PublishedInventory, report contracts.RunReport) contracts.RunReport {
 	report.Outcome = "published"
+	report.Reconciliation = published.Reconciliation
 	report.Quality = &published.Quality
 	report.NormalizedRevision = &published.Revision
 	report.Counts = published.Counts
@@ -166,6 +181,11 @@ func verifyBuilt(artifact string, built builtRevision, inventory committedInvent
 	}
 	if remaining != 0 {
 		return failure(4, "integrity", errors.New("unaccounted committed observations"))
+	}
+	if r := built.Reconciliation; r != nil {
+		if r.Observations != built.Counts.Accepted || r.Variants < 0 || r.Variants > r.Observations || r.LogicalEvents < 0 || r.LogicalEvents > r.Variants || r.ConflictingEvents < 0 || r.ConflictingEvents > r.LogicalEvents || r.UnidentifiedObservations < 0 || r.UnidentifiedObservations > r.Observations {
+			return failure(4, "integrity", errors.New("invalid reconciliation accounting"))
+		}
 	}
 	rejectRows := built.Counts.Rejected
 	for _, file := range built.Rejects {

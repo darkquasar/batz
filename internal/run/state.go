@@ -155,6 +155,9 @@ func commitPlaced(db *sql.DB, root string, placed placedReceipt, prior sql.NullS
 			return committedInventory{}, err
 		}
 		applyInventory(&report, inventory)
+		if report.Acquisition != nil {
+			report.Acquisition.Acquired = append(report.Acquisition.Acquired, receipt.Inputs...)
+		}
 		if _, err = tx.Exec("UPDATE runs SET report=? WHERE id=?", encode(report), receipt.Identity.Run); err != nil {
 			return committedInventory{}, err
 		}

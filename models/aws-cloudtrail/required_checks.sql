@@ -4,7 +4,7 @@ MODEL (name cloudtrail.required_checks, kind FULL);
 -- independent SQLMesh fixtures separately check the mapping and this oracle.
 SELECT
  (SELECT count(*) FROM cloudtrail.api_activity a
-  JOIN cloudtrail.source_staging s ON a.batz.origins[1].observation_id=s.observation_id
+  JOIN cloudtrail.source_staging s ON a.batz.origins[1].source_event_id=s.observation_id
   WHERE a.event.action IS DISTINCT FROM 'object-read'
      OR a.event.kind IS DISTINCT FROM 'event'
      OR a.ecs.version IS DISTINCT FROM '9.5.0'

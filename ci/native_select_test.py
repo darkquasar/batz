@@ -1,4 +1,4 @@
-"""Selection behavior against small real Git histories; starts no native engine."""
+"""Selection against real Git histories and native metadata, without evaluation."""
 import importlib.util
 import json
 from pathlib import Path
@@ -17,11 +17,12 @@ class AffectedJobs(unittest.TestCase):
         self.addCleanup(self.scratch.cleanup)
         self.root = Path(self.scratch.name)
         self.git('init', '-b', 'main')
+        self.write('config.yaml', (Path(__file__).resolve().parents[1]/'config.yaml').read_text())
         for identity in ('pipeline-a', 'pipeline-b'):
             namespace = identity.replace('-', '_')
             self.write('pipelines/' + identity + '.yaml', json.dumps({
                 'apiVersion': 'batz/v0alpha2', 'kind': 'SourcePipeline', 'name': identity, 'version': 1,
-                'normalization': {'project': 'repo://normalization/' + identity,
+                'normalization': {'project': 'repo://.',
                                   'staging': namespace + '.staging', 'evidence': namespace + '.evidence', 'checks': namespace + '.checks'},
                 'routes': {'local_raw': {'input': {'engine': 'bento', 'framing': 'records-json',
                                                    'config': 'repo://collector/' + identity + '.yaml', 'params': {}},
@@ -29,7 +30,8 @@ class AffectedJobs(unittest.TestCase):
                 'explain': {'examples': [{'id': 'example', 'route': 'local_raw', 'input': 'repo://fixtures/' + identity + '.json',
                                           'expectations': 'repo://fixtures/' + identity + '.expected.json', 'sha256': 'a'*64}]}
             }))
-            self.write('normalization/' + identity + '/models/events.sql', 'SELECT 1;\n')
+            for model in ('staging','evidence','checks','events'):
+                self.write('models/' + identity + '/' + model + '.sql', f'MODEL (name {namespace}.{model}, kind FULL); SELECT 1 AS id;')
             self.write('collector/' + identity + '.yaml', '{}\n')
             self.write('fixtures/' + identity + '.json', '{"Records":[]}\n')
             self.write('fixtures/' + identity + '.expected.json', '{}\n')
@@ -52,12 +54,30 @@ class AffectedJobs(unittest.TestCase):
         return selection.select_changes(self.root, self.base, self.commit())
 
     def test_pipeline_only_change_selects_no_other_pipeline(self):
-        self.write('normalization/pipeline-a/models/events.sql', 'SELECT 2;\n')
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 2 AS id;')
         jobs = self.selected()
         self.assertEqual(jobs['models'], ['pipeline-a'])
         self.assertEqual(jobs['e2e'], ['pipeline-a'])
         self.assertTrue(jobs['fast'])
         self.assertFalse(jobs['app'])
+
+    def test_unconsumed_shared_model_broadens_native_tests(self):
+        self.write('models/shared/orphan.sql', 'MODEL (name common.orphan, kind FULL); SELECT 2 AS id;')
+        self.write('tests/shared/test_orphan.yaml', json.dumps({'orphan': {'model':'common.orphan','outputs':{'query':{'rows':[{'id':1}]}}}}))
+        jobs = self.selected()
+        self.assertEqual(jobs['models'], ['pipeline-a','pipeline-b'])
+        self.assertTrue(any('unconsumed native' in reason for reason in jobs['reasons']))
+
+    def test_owned_helper_outside_execution_scope_selects_owner(self):
+        self.write('models/pipeline-a/helper.sql', 'MODEL (name pipeline_a.helper, kind FULL); SELECT 1 AS id;')
+        self.assertEqual(self.selected()['models'], ['pipeline-a'])
+
+    def test_native_test_only_skips_adapters_and_e2e(self):
+        self.write('tests/pipeline-a/test_events.yaml', json.dumps({'events': {'model':'pipeline_a.events','outputs':{'query':{'rows':[{'id':1}]}}}}))
+        jobs = self.selected()
+        self.assertEqual(jobs['models'], ['pipeline-a'])
+        self.assertEqual(jobs['adapters'], [])
+        self.assertEqual(jobs['e2e'], [])
 
     def test_shared_app_selects_critical_runtime_without_catalog_e2e(self):
         self.write('internal/app/app.go', 'package app\\n')
@@ -84,21 +104,22 @@ class AffectedJobs(unittest.TestCase):
         self.assertEqual(jobs['models'], ['pipeline-a', 'pipeline-b'])
         self.assertEqual(jobs['e2e'], ['pipeline-a'])
 
-    def test_renamed_project_uses_both_snapshots_ownership(self):
-        self.git('mv', 'normalization/pipeline-a', 'normalization/renamed-a')
-        path = self.root / 'pipelines/pipeline-a.yaml'
-        value = json.loads(path.read_text())
-        value['normalization']['project'] = 'repo://normalization/renamed-a'
-        path.write_text(json.dumps(value))
-        jobs = self.selected()
-        self.assertEqual(jobs['models'], ['pipeline-a'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a'])
+    def test_rename_keeps_native_identity_and_owner(self):
+        self.git('mv', 'models/pipeline-a/events.sql', 'models/pipeline-a/renamed.sql')
+        self.assertEqual(self.selected()['e2e'], ['pipeline-a'])
 
-    def test_deleted_referenced_model_still_selects_its_pipeline(self):
-        (self.root / 'normalization/pipeline-a/models/events.sql').unlink()
-        jobs = self.selected()
-        self.assertEqual(jobs['models'], ['pipeline-a'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a'])
+    def test_deleted_required_root_fails_head_discovery(self):
+        (self.root / 'models/pipeline-a/events.sql').unlink()
+        with self.assertRaises(Exception):
+            self.selected()
+
+    def test_removed_shared_edge_checks_former_consumer(self):
+        self.write('models/shared/s.sql', 'MODEL (name common.s, kind FULL); SELECT 1 AS id;')
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT * FROM common.s;')
+        self.base = self.commit()
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 2 AS id;')
+        (self.root/'models/shared/s.sql').unlink()
+        self.assertEqual(self.selected()['e2e'], ['pipeline-a'])
 
     def test_removed_pipeline_broadens_remaining_contracts(self):
         (self.root / 'pipelines/pipeline-a.yaml').unlink()
@@ -107,20 +128,41 @@ class AffectedJobs(unittest.TestCase):
         self.assertEqual(jobs['models'], ['pipeline-b'])
         self.assertTrue(jobs['app'])
 
-    def test_shared_project_references_select_all_owners(self):
-        path = self.root / 'pipelines/pipeline-b.yaml'
-        value = json.loads(path.read_text())
-        value['normalization']['project'] = 'repo://normalization/pipeline-a'
-        path.write_text(json.dumps(value))
+    def test_shared_dependency_selects_consumers_only(self):
+        self.write('models/shared/s.sql', 'MODEL (name common.s, kind FULL); SELECT 1 AS id;')
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT * FROM common.s;')
         self.base = self.commit()
-        self.write('normalization/pipeline-a/models/events.sql', 'SELECT 2;')
-        self.assertEqual(self.selected()['models'], ['pipeline-a', 'pipeline-b'])
+        self.write('models/shared/s.sql', 'MODEL (name common.s, kind FULL); SELECT 2 AS id;')
+        self.assertEqual(self.selected()['models'], ['pipeline-a'])
+
+    def test_independent_pipeline_addition_needs_no_registry(self):
+        value = json.loads((self.root/'pipelines/pipeline-a.yaml').read_text())
+        value['name'] = 'new-source'
+        for name in ('staging','evidence','checks'):
+            value['normalization'][name] = 'unrelated_schema.'+name
+        value['routes']['local_raw']['output']['normalized']['models'] = {'events':'unrelated_schema.events'}
+        self.write('pipelines/new-source/pipeline.yaml',json.dumps(value))
+        for name in ('staging','evidence','checks','events'):
+            self.write('models/new-source/'+name+'.sql',f'MODEL (name unrelated_schema.{name}, kind FULL); SELECT 1 AS id;')
+        self.write('tests/new-source/test_events.yaml',json.dumps({'new_test':{'model':'unrelated_schema.events','outputs':{'query':{'rows':[{'id':1}]}}}}))
+        jobs = self.selected()
+        self.assertEqual(jobs['models'],['new-source'])
+        self.assertEqual(jobs['adapters'],['new-source'])
+        self.assertEqual(jobs['e2e'],['new-source'])
+
+    def test_old_layout_base_broadens_with_reason(self):
+        (self.root/'config.yaml').unlink()
+        self.base = self.commit()
+        self.write('config.yaml', (Path(__file__).resolve().parents[1]/'config.yaml').read_text())
+        jobs = self.selected()
+        self.assertEqual(jobs['models'], ['pipeline-a','pipeline-b'])
+        self.assertTrue(any('unsupported-base' in reason for reason in jobs['reasons']))
 
     def test_merge_base_excludes_changes_unique_to_the_target_branch(self):
-        self.write('normalization/pipeline-b/models/events.sql', 'SELECT 2;')
+        self.write('models/pipeline-b/events.sql', 'SELECT 2;')
         target = self.commit()
         self.git('checkout', '-qb', 'feature', self.base)
-        self.write('normalization/pipeline-a/models/events.sql', 'SELECT 3;')
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 3 AS id;')
         head = self.commit()
         jobs = selection.select_changes(self.root, target, head)
         self.assertEqual(jobs['models'], ['pipeline-a'])
@@ -139,6 +181,11 @@ class AffectedJobs(unittest.TestCase):
     def test_testdata_neighbour_selects_its_pipeline_and_shared_app(self):
         value = json.loads((self.root / 'pipelines/pipeline-a.yaml').read_text())
         value['name'] = 'probe'
+        for model in ('staging','evidence','checks','events'):
+            self.write('models/probe/'+model+'.sql', f'MODEL (name probe.{model}, kind FULL); SELECT 1 AS id;')
+        for key in ('staging','evidence','checks'):
+            value['normalization'][key] = 'probe.'+key
+        value['routes']['local_raw']['output']['normalized']['models']['events'] = 'probe.events'
         self.write('internal/app/testdata/probe/pipeline.yaml', json.dumps(value))
         self.base = self.commit()
         self.write('internal/app/testdata/probe/undeclared.jsonl', '{}\n')
@@ -150,6 +197,11 @@ class AffectedJobs(unittest.TestCase):
     def test_bridge_uses_fixed_production_and_testdata_probes(self):
         value = json.loads((self.root / 'pipelines/pipeline-a.yaml').read_text())
         value['name'] = 'probe'
+        for model in ('staging','evidence','checks','events'):
+            self.write('models/probe/'+model+'.sql', f'MODEL (name probe.{model}, kind FULL); SELECT 1 AS id;')
+        for key in ('staging','evidence','checks'):
+            value['normalization'][key] = 'probe.'+key
+        value['routes']['local_raw']['output']['normalized']['models']['events'] = 'probe.events'
         self.write('internal/app/testdata/probe/pipeline.yaml', json.dumps(value))
         self.base = self.commit()
         self.write('internal/app/explain.go', '// shared preview orchestration')

@@ -12,7 +12,24 @@ import (
 
 func copyTree(t *testing.T, source, dest string) {
 	t.Helper()
-	err := filepath.WalkDir(source, func(path string, e os.DirEntry, err error) error {
+	info, err := os.Stat(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.IsDir() {
+		data, err := os.ReadFile(source)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(dest, data, 0600); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	err = filepath.WalkDir(source, func(path string, e os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -41,7 +58,7 @@ func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 	}
 	content := t.TempDir()
 	workspace := filepath.Join(t.TempDir(), "workspace")
-	for _, dir := range []string{"pipelines", "normalization", "collector/configs", "runtime/sqlmesh"} {
+	for _, dir := range []string{"pipelines", "models", "tests", "config.yaml", "runtime/sqlmesh"} {
 		copyTree(t, filepath.Join(root, dir), filepath.Join(content, dir))
 	}
 	if err = os.MkdirAll(filepath.Join(content, "runtime/.local/venv/bin"), 0700); err != nil {
@@ -72,11 +89,18 @@ func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(content, "pipelines/aws-cloudtrail.yaml"), "--project", content, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + filepath.Join(root, "fixtures/cloudtrail/api-read.json")}, &out, &diagnostics)
+	code := app.Execute([]string{"run", filepath.Join(content, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", content, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + filepath.Join(root, "pipelines/aws-cloudtrail/fixtures/api-read.json")}, &out, &diagnostics)
 	if code != 4 || !strings.Contains(diagnostics.String(), "collector") {
 		t.Fatalf("tampered collector must fail integrity preflight; exit=%d stderr=%s", code, &diagnostics)
 	}
 	if _, err = os.Stat(workspace); !os.IsNotExist(err) {
 		t.Fatalf("integrity failure mutated workspace: %v", err)
+	}
+}
+
+func copyNativeCatalog(t *testing.T, source, dest string) {
+	t.Helper()
+	for _, path := range []string{"config.yaml", "models", "tests"} {
+		copyTree(t, filepath.Join(source, path), filepath.Join(dest, path))
 	}
 }

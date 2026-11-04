@@ -17,7 +17,7 @@ func nativeContent(t *testing.T) string {
 		t.Fatal(err)
 	}
 	content := t.TempDir()
-	for _, dir := range []string{"pipelines", "normalization", "collector/configs", "runtime/sqlmesh", "internal/app/testdata/synthetic"} {
+	for _, dir := range []string{"pipelines", "models", "tests", "config.yaml", "runtime/sqlmesh", "internal/app/testdata/synthetic"} {
 		copyTree(t, filepath.Join(root, dir), filepath.Join(content, dir))
 	}
 	local := os.Getenv("BATZ_TEST_RUNTIME")

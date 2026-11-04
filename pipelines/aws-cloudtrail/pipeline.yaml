@@ -3,7 +3,7 @@ kind: SourcePipeline
 name: aws-cloudtrail
 version: 1
 normalization:
-  project: repo://normalization/cloudtrail
+  project: repo://.
   staging: cloudtrail.source_staging
   evidence: cloudtrail.build_evidence
   checks: cloudtrail.required_checks
@@ -12,7 +12,7 @@ routes:
     input:
       engine: bento
       framing: records-json
-      config: repo://collector/configs/cloudtrail/local-records.yaml
+      config: repo://pipelines/aws-cloudtrail/input/local-records.yaml
       params:
         path: {type: path, required: true, env: BATZ_SOURCE_PATH}
     output:
@@ -24,6 +24,6 @@ explain:
   examples:
     - id: api-read
       route: local_raw
-      input: repo://fixtures/cloudtrail/api-read.json
+      input: repo://pipelines/aws-cloudtrail/fixtures/api-read.json
       sha256: 72f8117ea2033e4b391f12ed1948d681f88a6a0310c46e07dce4aa9d53c1e8c9
-      expectations: repo://fixtures/cloudtrail/api-read.expected.json
+      expectations: repo://pipelines/aws-cloudtrail/fixtures/api-read.expected.json

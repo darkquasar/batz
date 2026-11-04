@@ -17,7 +17,7 @@ spec.loader.exec_module(preview)
 
 class ReviewedExpectations(unittest.TestCase):
     def setUp(self):
-        self.expected = json.loads((root / "fixtures/cloudtrail/api-read.expected.json").read_text())
+        self.expected = json.loads((root / "pipelines/aws-cloudtrail/fixtures/api-read.expected.json").read_text())
         self.record = {
             "event": {"action": "object-read"},
             "user": {"id": "arn:aws:iam::111122223333:user/example-responder"},

@@ -11,7 +11,7 @@ import (
 func TestExplicitExampleCannotUseIncompatibleRoute(t *testing.T) {
 	root, _ := filepath.Abs("../..")
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "3", "--example", "unregistered.json", "--format", "json"}, &out, &diagnostics)
+	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--example", "unregistered.json", "--format", "json"}, &out, &diagnostics)
 	if code != 2 {
 		t.Fatalf("unassociated file accepted: %d %s", code, &out)
 	}
@@ -20,7 +20,7 @@ func TestExplicitExampleCannotUseIncompatibleRoute(t *testing.T) {
 func TestPreviewMissingRuntimeNeverDownloadsOrCreatesState(t *testing.T) {
 	root := t.TempDir()
 	definition := filepath.Join(root, "source.yaml")
-	data, err := os.ReadFile("../../pipelines/aws-cloudtrail.yaml")
+	data, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

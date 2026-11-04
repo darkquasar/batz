@@ -105,6 +105,9 @@
     },
     "catalog": {
       "$ref": "common.schema.json#/$defs/file"
+    },
+    "reconciliation": {
+      "$ref": "common.schema.json#/$defs/reconciliation"
     }
   },
   "required": [

@@ -129,16 +129,9 @@ func explain(args []string, stdout, stderr io.Writer) int {
 	modelRoot := resolve(pipeline.Normalization.Project, *project, filepath.Dir(definition), selection.Workspace)
 	asset(pipeline.Normalization.Project+"/config.yaml", resolve(pipeline.Normalization.Project+"/config.yaml", *project, filepath.Dir(definition), selection.Workspace))
 	if !strings.HasPrefix(modelRoot, "workspace://") {
-		_ = filepath.WalkDir(modelRoot, func(path string, entry os.DirEntry, e error) error {
-			if e != nil {
-				return nil
-			}
-			if !entry.IsDir() && (filepath.Ext(path) == ".py" || filepath.Ext(path) == ".pyc") {
-				rel, _ := filepath.Rel(modelRoot, path)
-				report.Diagnostics = append(report.Diagnostics, contracts.Diagnostic{Category: "incomplete-capability", Code: "unsupported-content", Source: rel, Message: "project Python content is unsupported"})
-			}
-			return nil
-		})
+		if err := validateProjectContent(modelRoot); err != nil {
+			report.Diagnostics = append(report.Diagnostics, contracts.Diagnostic{Category: "incomplete-capability", Code: "unsupported-content", Source: pipeline.Normalization.Project, Message: err.Error()})
+		}
 	}
 	if *level >= 2 {
 		type stageSpec struct {

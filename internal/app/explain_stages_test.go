@@ -16,7 +16,7 @@ func TestExplainStagesWithoutExecutingRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--level", "2", "--format", "json", "--strict"}, &out, &diagnostics)
+	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "2", "--format", "json", "--strict"}, &out, &diagnostics)
 	if code != 0 {
 		t.Fatalf("stage explanation unavailable: exit=%d %s %s", code, &out, &diagnostics)
 	}
@@ -68,12 +68,12 @@ func TestSavedBindingEnrichesExplainWithOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	binding := filepath.Join(t.TempDir(), "binding.yaml")
-	content := "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: chosen\ndefinition: repo://pipelines/aws-cloudtrail.yaml\nversion: 1\nroute: local_raw\ninput:\n  path: repo://fixtures/cloudtrail/api-read.json\n"
+	content := "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: chosen\ndefinition: repo://pipelines/aws-cloudtrail/pipeline.yaml\nversion: 1\nroute: local_raw\ninput:\n  path: repo://pipelines/aws-cloudtrail/fixtures/api-read.json\n"
 	if err := os.WriteFile(binding, []byte(content), 0600); err != nil {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--binding", binding, "--format", "json"}, &out, &diagnostics)
+	code := app.Execute([]string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--binding", binding, "--format", "json"}, &out, &diagnostics)
 	if code != 0 {
 		t.Fatalf("saved context failed: %d %s %s", code, &out, &diagnostics)
 	}
@@ -87,7 +87,7 @@ func TestSavedBindingEnrichesExplainWithOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	origin, ok := report.Resolution["input.path"]
-	if !ok || origin.Value != filepath.Join(root, "fixtures/cloudtrail/api-read.json") || origin.Source != binding {
+	if !ok || origin.Value != filepath.Join(root, "pipelines/aws-cloudtrail/fixtures/api-read.json") || origin.Source != binding {
 		t.Fatalf("lost value/origin: %s", &out)
 	}
 }
@@ -95,7 +95,7 @@ func TestSavedBindingEnrichesExplainWithOrigin(t *testing.T) {
 func TestRunAggregatesMissingWorkspaceAndRequiredInputs(t *testing.T) {
 	root, _ := filepath.Abs("../..")
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail.yaml"), "--project", root, "--route", "local_raw"}, &out, &diagnostics)
+	code := app.Execute([]string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw"}, &out, &diagnostics)
 	if code != 2 || !strings.Contains(diagnostics.String(), "missing-workspace") || !strings.Contains(diagnostics.String(), "input.path") {
 		t.Fatalf("incomplete static diagnostics: %d %s", code, &diagnostics)
 	}

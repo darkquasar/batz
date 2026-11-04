@@ -30,7 +30,7 @@ func saveRun(db *sql.DB, root string, req Request, report contracts.RunReport) e
 }
 
 func recordRun(db *sql.DB, req Request, report contracts.RunReport) error {
-	_, err := db.Exec("INSERT INTO runs(id,binding,request,report,prior_parsed) VALUES (?,?,?,?,(SELECT parsed FROM bindings WHERE id=?)) ON CONFLICT(id) DO UPDATE SET report=excluded.report", report.Identity.Run, req.Binding, encode(req), encode(report), req.Binding)
+	_, err := db.Exec("INSERT INTO runs(id,binding,request,report,prior_parsed) VALUES (?,?,?,?,(SELECT parsed FROM bindings WHERE id=?)) ON CONFLICT(id) DO UPDATE SET request=excluded.request,prior_parsed=CASE WHEN json_extract(runs.report,'$.identity.batch_id')<>json_extract(excluded.report,'$.identity.batch_id') THEN excluded.prior_parsed ELSE runs.prior_parsed END,report=excluded.report", report.Identity.Run, req.Binding, encode(req), encode(report), req.Binding)
 	return err
 }
 
