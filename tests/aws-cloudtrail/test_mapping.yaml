@@ -3,7 +3,7 @@ test_required_995_valid_5_mapping_rejects:
   inputs:
     batz_input.parsed:
       query: |
-        SELECT 'row-' || i AS observation_id,
+        SELECT 'fixture' AS binding_id, 'row-' || i AS observation_id,
           json_object('eventSource','s3.amazonaws.com','eventName','GetObject',
            'eventType','AwsApiCall','userIdentity',json_object('type','IAMUser'),
            'eventID', to_json('id-' || i),'sourceIPAddress',CASE WHEN i<995 THEN to_json('192.0.2.1') ELSE '42'::JSON END)::VARCHAR AS payload
@@ -20,7 +20,7 @@ test_required_80_mapped_20_unsupported:
   inputs:
     batz_input.parsed:
       query: |
-        SELECT 'row-' || i AS observation_id,
+        SELECT 'fixture' AS binding_id, 'row-' || i AS observation_id,
           json_object('eventSource','s3.amazonaws.com','eventName',CASE WHEN i<80 THEN 'GetObject' ELSE 'Unknown' END,
            'eventType','AwsApiCall','userIdentity',json_object('type','IAMUser'))::VARCHAR AS payload
         FROM range(100) r(i)
@@ -37,14 +37,19 @@ test_time_classification_and_offset:
     batz_input.parsed:
       rows:
         - observation_id: offset
+          binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T14:00:00+02:00"}'
         - observation_id: undated
+          binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"}}'
         - observation_id: malformed
+          binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-99-25T12:00:00Z"}'
         - observation_id: too_precise
+          binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T12:00:00.1234567891Z"}'
         - observation_id: out_of_range
+          binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"1500-01-01T00:00:00Z"}'
   outputs:
     query:
@@ -89,7 +94,7 @@ test_each_malformed_supported_field_is_rejected:
   inputs:
     batz_input.parsed:
       query: |
-        SELECT field AS observation_id,
+        SELECT 'fixture' AS binding_id, field AS observation_id,
          json_merge_patch('{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"}}'::JSON, bad::JSON)::VARCHAR AS payload
         FROM (VALUES
          ('eventID','{"eventID":42}'),
