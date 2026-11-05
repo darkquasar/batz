@@ -1,0 +1,28 @@
+{
+  "Records": [
+    {
+      "eventID": "nano-z",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "GetObject",
+      "eventType": "AwsApiCall",
+      "userIdentity": {
+        "type": "IAMUser",
+        "arn": "invented-actor"
+      },
+      "eventTime": "2026-10-25T12:00:00.000000002Z",
+      "unmapped_example": "kept"
+    },
+    {
+      "eventID": "nano-offset",
+      "eventSource": "s3.amazonaws.com",
+      "eventName": "GetObject",
+      "eventType": "AwsApiCall",
+      "userIdentity": {
+        "type": "IAMUser",
+        "arn": "invented-actor"
+      },
+      "eventTime": "2026-10-25T22:00:00.000000002+10:00",
+      "unmapped_example": "kept"
+    }
+  ]
+}

@@ -52,16 +52,13 @@ func copyTree(t *testing.T, source, dest string) {
 }
 
 func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
-	root, err := filepath.Abs("../..")
-	if err != nil {
-		t.Fatal(err)
-	}
+	root := nativeContent(t)
 	content := t.TempDir()
 	workspace := filepath.Join(t.TempDir(), "workspace")
-	for _, dir := range []string{"pipelines", "models", "tests", "config.yaml", "runtime/sqlmesh"} {
+	for _, dir := range []string{"internal/app/testdata/synthetic", "models/synthetic-jsonl", "tests/synthetic-jsonl", "config.yaml", "runtime/sqlmesh"} {
 		copyTree(t, filepath.Join(root, dir), filepath.Join(content, dir))
 	}
-	if err = os.MkdirAll(filepath.Join(content, "runtime/.local/venv/bin"), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Join(content, "runtime/.local/venv/bin"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	lock, err := os.ReadFile(filepath.Join(root, "runtime/dependencies.lock.json"))
@@ -73,7 +70,7 @@ func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	if parsed["installed_binaries"] == nil {
-		t.Fatal("test setup requires the real installation receipt")
+		t.Fatal("test setup requires an installation receipt")
 	}
 	if err = os.WriteFile(filepath.Join(content, "runtime/dependencies.lock.json"), lock, 0600); err != nil {
 		t.Fatal(err)
@@ -89,7 +86,7 @@ func TestTamperedCollectorRefusedBeforeWorkspaceMutation(t *testing.T) {
 		t.Fatal(err)
 	}
 	var out, diagnostics bytes.Buffer
-	code := app.Execute([]string{"run", filepath.Join(content, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", content, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + filepath.Join(root, "pipelines/aws-cloudtrail/fixtures/api-read.json")}, &out, &diagnostics)
+	code := app.Execute([]string{"run", filepath.Join(content, "internal/app/testdata/synthetic/pipeline.yaml"), "--project", content, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + filepath.Join(root, "internal/app/testdata/synthetic/events.jsonl")}, &out, &diagnostics)
 	if code != 4 || !strings.Contains(diagnostics.String(), "collector") {
 		t.Fatalf("tampered collector must fail integrity preflight; exit=%d stderr=%s", code, &diagnostics)
 	}

@@ -14,7 +14,7 @@ import (
 func TestExplainPreservesTimestampDefaultText(t *testing.T) {
 	const timestamp = "2026-10-25T12:00:00.120000000+10:00"
 	root := t.TempDir()
-	data, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
+	data, err := os.ReadFile("../../internal/app/testdata/synthetic/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestExplainPreservesTimestampDefaultText(t *testing.T) {
 
 func TestRunAggregatesInvalidInputWithMissingValuesAndAssets(t *testing.T) {
 	root := t.TempDir()
-	data, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
+	data, err := os.ReadFile("../../internal/app/testdata/synthetic/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,9 +90,9 @@ func TestExplainHistoricalPrecedenceTracesAndTypedCLIValues(t *testing.T) {
 	// The remote route is declared for static explanation, never executed.
 	writeContextFile(t, definition, `apiVersion: batz/v0alpha2
 kind: SourcePipeline
-name: aws-cloudtrail
+name: synthetic-jsonl
 version: 1
-normalization: {project: repo://., staging: cloudtrail.source_staging, evidence: cloudtrail.build_evidence, checks: cloudtrail.required_checks}
+normalization: {project: repo://., staging: probe.records, evidence: probe.evaluation, checks: probe.required_checks}
 routes:
   s3_raw:
     input:
@@ -106,7 +106,7 @@ routes:
         since: {type: timestamp, required: false, env: BATZ_SINCE}
     output:
       parsed: {format: parquet}
-      normalized: {models: {api_activity: cloudtrail.api_activity}}
+      normalized: {models: {findings: probe.findings}}
 `)
 	writeContextFile(t, filepath.Join(project, "workspace.yaml"), `apiVersion: batz/v0alpha1
 kind: Workspace
@@ -120,7 +120,7 @@ kind: Workspace
 credentials:
   aws: {provider: aws_profile, profile: laptop-readonly}
 pipeline_defaults:
-  aws-cloudtrail:
+  synthetic-jsonl:
     s3_raw:
       input: {bucket: example-evidence}
 `)
@@ -213,20 +213,20 @@ func assertLosslessStructures(t *testing.T, raw []byte) {
 	if len(structures) != 5 || structures["parsed"]["payload"].NativeType != "VARCHAR" || structures["parsed"]["payload"].Encoding != "json-text" {
 		t.Fatalf("source/intermediate structure or JSON text encoding lost: %s", string(raw))
 	}
-	event := structures["api_activity"]["event"]
+	event := structures["findings"]["event"]
 	if !strings.HasPrefix(event.NativeType, "STRUCT(") || len(event.Fields) == 0 {
 		t.Fatalf("nested event columns flattened: %+v", event)
 	}
-	integer := structures["api_activity"]["example_large_integer"]
-	instant := structures["api_activity"]["example_nanosecond_time"]
+	integer := structures["findings"]["example_large_integer"]
+	instant := structures["findings"]["example_nanosecond_time"]
 	if integer.NativeType != "BIGINT" || integer.Encoding != "decimal-string-if-unsafe" || instant.NativeType != "TIMESTAMP_NS" || instant.Encoding != "iso-string" {
 		t.Fatalf("native type/encoding lost: integer=%+v instant=%+v", integer, instant)
 	}
 	for _, sample := range report.Samples {
-		if sample.Stage != "api_activity" {
+		if sample.Stage != "findings" {
 			continue
 		}
-		if len(sample.Records) != 1 {
+		if len(sample.Records) != 2 {
 			t.Fatalf("unexpected sample records: %+v", sample)
 		}
 		record, ok := sample.Records[0].(map[string]any)
@@ -256,7 +256,7 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			root := previewContent(t)
+			root := nativeContent(t)
 			path := filepath.Join(root, "config.yaml")
 			data, err := os.ReadFile(path)
 			if err != nil {
@@ -282,7 +282,7 @@ func TestPreviewRejectsAutomaticExtensionInstallationBeforeLaunch(t *testing.T) 
 			if err := os.WriteFile(path, changed, 0600); err != nil {
 				t.Fatal(err)
 			}
-			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
+			args := []string{"explain", filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
 			args = append(args, tt.args...)
 			var out, diagnostics bytes.Buffer
 			code := app.Execute(args, &out, &diagnostics)

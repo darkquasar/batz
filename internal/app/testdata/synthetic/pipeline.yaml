@@ -12,7 +12,7 @@ routes:
     input:
       engine: bento
       framing: jsonl
-      config: collector.yaml
+      config: repo://internal/app/testdata/synthetic/collector.yaml
       params:
         path: {type: path, required: true, env: BATZ_SOURCE_PATH}
     output:
@@ -24,6 +24,6 @@ explain:
   examples:
     - id: events
       route: local_raw
-      input: events.jsonl
+      input: repo://internal/app/testdata/synthetic/events.jsonl
       sha256: c3f364dcc3a4dfc28c5c675e4ef6635b312ae988e1bf30d5d1639bb4573f566b
-      expectations: events.expected.json
+      expectations: repo://internal/app/testdata/synthetic/events.expected.json

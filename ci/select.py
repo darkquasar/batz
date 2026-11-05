@@ -89,7 +89,7 @@ def ownership(catalog):
     paths = {}
     for identity, item in catalog.items():
         manifest, value = item['path'], item['document']
-        owned = {manifest, 'internal/app/' + identity.replace('-', '_') + '_e2e_test.go'}
+        owned = {manifest}
         if '/testdata/' in manifest:
             owned.add(str(Path(manifest).parent))
         for route in value['routes'].values():
@@ -120,14 +120,18 @@ def select_changes(root, base, head):
         docs = False
         broaden = False
         native_changes = set()
+        executable_changes = set(changed)
         bridge = {'internal/app/explain.go','internal/app/pipeline.go','internal/app/native.go',
                   'internal/app/preview.go','internal/app/dependencies.go','internal/run/collection.go',
-                  'internal/run/normalization.go','internal/run/child.go'}
+                  'internal/run/normalization.go','internal/run/child.go',
+                  'internal/app/native_test.go','internal/app/publication_test.go',
+                  'internal/app/dependencies_test.go','internal/app/shared_reader_test.go'}
         for path in sorted(changed):
             owners = {owner for owner,paths in owned.items()
                       if any(path == asset or path.startswith(asset+'/') for asset in paths)}
-            if path.endswith(('.md','.rst')) and not owners:
+            if path.endswith(('.md','.rst')) and not any(path in owned[owner] for owner in owners):
                 docs = True
+                executable_changes.remove(path)
                 continue
             affected.update(owners)
             if owners:
@@ -163,6 +167,11 @@ def select_changes(root, base, head):
                     reasons.append('unsupported-base: '+str(error))
                 else:
                     stack.callback(base_context.close)
+                    impact = impacted_models(base_context,head_context,native_changes)
+                    for owner,item in {**before, **after}.items():
+                        if '/testdata/' in item['path'] and impact & (base_scopes.get(owner,set()) | head_scopes.get(owner,set())):
+                            shared_app = True
+                            reasons.append('shared runtime model impact: '+owner)
                     # Test coverage includes owned helpers outside runtime roots.
                     for context, scopes in ((base_context,base_scopes),(head_context,head_scopes)):
                         for name,path in model_sources(context).items():
@@ -172,7 +181,6 @@ def select_changes(root, base, head):
                         for scope in scopes.values():
                             for name in tuple(scope):
                                 scope.update(context.dag.upstream(name))
-                    impact = impacted_models(base_context,head_context,native_changes)
                     covered = set().union(*base_scopes.values(),*head_scopes.values())
                     if impact - covered:
                         broaden_tests = True
@@ -201,19 +209,17 @@ def select_changes(root, base, head):
                         reasons.append('unattributed native input: '+path)
         adapters = sorted(affected & set(after))
         selected = sorted((affected | test_affected) & set(after))
-        e2e = set(adapters)
         if broaden_tests:
             selected = sorted(after)
         if broaden:
             selected = sorted(after)
             adapters = selected
-            production = sorted(owner for owner,item in after.items() if '/testdata/' not in item['path'])
-            probes = sorted(owner for owner,item in after.items() if '/testdata/' in item['path'])
-            e2e.update(production[:1]+probes[:1])
             shared_app = True
+        native_tests_only = bool(executable_changes) and executable_changes == native_changes and all(
+            path.startswith('tests/') and path.endswith(('.yaml','.yml')) for path in executable_changes)
         return {'base':common,'head':git(root,'rev-parse',head).decode().strip(),
-                'fast':bool(selected) or shared_app or broaden,'app':shared_app,'models':selected,'adapters':adapters,
-                'e2e':sorted(e2e),'docs':docs,'removed_pipelines':removed,'reasons':sorted(set(reasons))}
+                'fast':(bool(selected) and not native_tests_only) or bool(adapters) or shared_app or broaden,'app':shared_app,'models':selected,'adapters':adapters,
+                'docs':docs,'removed_pipelines':removed,'reasons':sorted(set(reasons))}
 
 
 if __name__ == '__main__':

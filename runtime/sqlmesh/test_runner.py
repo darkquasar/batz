@@ -68,6 +68,26 @@ class PublishedMembership(unittest.TestCase):
     def verify(self):
         bridge.verify_published(self.connection, 'demo', self.request, self.expected, self.proof)
 
+    def test_reconciliation_accounting_uses_mapped_scoped_variants(self):
+        self.connection.execute("""CREATE OR REPLACE TABLE demo.source_staging AS
+          SELECT id AS observation_id, status AS mapping_status,
+          {'logical_event_id':logical, 'norm_event_variant_id':variant} AS batz
+          FROM (VALUES ('a','mapped','event-1','same'),
+                       ('b','mapped','event-1','same'),
+                       ('c','mapped','event-1','changed'),
+                       ('d','mapped','event-2','same'),
+                       ('e','mapped',NULL,'unidentified'),
+                       ('f','mapped',NULL,'unidentified'),
+                       ('excluded','rejected','event-3','ignored')) t(id,status,logical,variant)""")
+        self.assertEqual(bridge.reconciliation_counts(self.connection, 'demo'),
+                         dict(observations=6, variants=5, logical_events=2,
+                              conflicting_events=1, unidentified_observations=2))
+
+    def test_reconciliation_without_optional_identity_uses_observations(self):
+        self.assertEqual(bridge.reconciliation_counts(self.connection, 'demo'),
+                         dict(observations=1, variants=1, logical_events=0,
+                              conflicting_events=0, unidentified_observations=1))
+
     def test_real_native_nested_schema_and_precision(self):
         self.verify()
         self.assertEqual(self.connection.execute('SELECT typeof("@timestamp"),epoch_ns("@timestamp") FROM demo.output').fetchone(), ('TIMESTAMP_NS', 1792929600000000001))

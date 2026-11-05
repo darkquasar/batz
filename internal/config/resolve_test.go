@@ -67,11 +67,11 @@ func TestSixLayerPrecedenceAndAtomicCredentialReplacement(t *testing.T) {
 	project := t.TempDir()
 	workspace := t.TempDir()
 	dir := t.TempDir()
-	write(t, filepath.Join(project, "workspace.yaml"), "apiVersion: batz/v0alpha1\nkind: Workspace\ncredentials:\n  aws: {provider: file, path: old, format: json}\npipeline_defaults:\n  cloudtrail:\n    raw:\n      input: {bucket: project, prefixes: [old, retained]}\n")
-	write(t, filepath.Join(workspace, "workspace.yaml"), "apiVersion: batz/v0alpha1\nkind: Workspace\npipeline_defaults:\n  cloudtrail:\n    raw:\n      input: {bucket: workspace}\n")
+	write(t, filepath.Join(project, "workspace.yaml"), "apiVersion: batz/v0alpha1\nkind: Workspace\ncredentials:\n  aws: {provider: file, path: old, format: json}\npipeline_defaults:\n  invented-events:\n    raw:\n      input: {bucket: project, prefixes: [old, retained]}\n")
+	write(t, filepath.Join(workspace, "workspace.yaml"), "apiVersion: batz/v0alpha1\nkind: Workspace\npipeline_defaults:\n  invented-events:\n    raw:\n      input: {bucket: workspace}\n")
 	binding := filepath.Join(dir, "binding.yaml")
-	write(t, binding, "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: chosen\ndefinition: repo://source.yaml\nversion: 1\nroute: raw\ncredentials:\n  aws: {provider: env, variable: AWS_KEY}\npipeline_defaults:\n  cloudtrail:\n    raw:\n      input: {bucket: shared}\ninput: {bucket: binding, prefixes: [new]}\n")
-	p := contracts.SourcePipeline{Name: "cloudtrail", Routes: map[string]contracts.Route{"raw": {Input: contracts.RouteInput{Params: map[string]contracts.Parameter{"bucket": {Type: "string", Default: "route"}, "prefixes": {Type: "string-list"}}}}}}
+	write(t, binding, "apiVersion: batz/v0alpha1\nkind: PipelineBinding\nid: chosen\ndefinition: repo://source.yaml\nversion: 1\nroute: raw\ncredentials:\n  aws: {provider: env, variable: AWS_KEY}\npipeline_defaults:\n  invented-events:\n    raw:\n      input: {bucket: shared}\ninput: {bucket: binding, prefixes: [new]}\n")
+	p := contracts.SourcePipeline{Name: "invented-events", Routes: map[string]contracts.Route{"raw": {Input: contracts.RouteInput{Params: map[string]contracts.Parameter{"bucket": {Type: "string", Default: "route"}, "prefixes": {Type: "string-list"}}}}}}
 	c := config.Context{Project: project, Workspace: workspace, Binding: binding, Input: map[string]string{"bucket": "cli"}}
 	s, err := config.Select(c)
 	if err != nil {

@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"batz/internal/app"
 	"batz/internal/contracts"
 	"bytes"
 	"encoding/json"
@@ -11,49 +10,15 @@ import (
 	"testing"
 )
 
-func runFixture(t *testing.T, root, workspace, input string, extra ...string) contracts.RunReport {
+func writeEvents(t *testing.T, path string, records []map[string]any) {
 	t.Helper()
-	args := []string{"run", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}
-	args = append(args, extra...)
-	var out, diagnostics bytes.Buffer
-	code := app.Execute(args, &out, &diagnostics)
-	if code != 0 {
-		_ = filepath.WalkDir(workspace, func(path string, e os.DirEntry, err error) error {
-			if err == nil && !e.IsDir() && (filepath.Base(path) == "model.log" || filepath.Base(path) == "collector.log") {
-				b, _ := os.ReadFile(path)
-				t.Logf("%s\n%s", path, b)
-			}
-			return nil
-		})
-		t.Fatalf("native run exit=%d %s %s", code, &diagnostics, &out)
+	var out bytes.Buffer
+	for _, record := range records {
+		if err := json.NewEncoder(&out).Encode(record); err != nil {
+			t.Fatal(err)
+		}
 	}
-	var report contracts.RunReport
-	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
-		t.Fatal(err)
-	}
-	return report
-}
-
-func sourceRecords(t *testing.T) map[string]any {
-	t.Helper()
-	b, err := os.ReadFile("../../pipelines/aws-cloudtrail/fixtures/api-read.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	var v map[string][]map[string]any
-	if err = json.Unmarshal(b, &v); err != nil {
-		t.Fatal(err)
-	}
-	return v["Records"][0]
-}
-
-func writeRecords(t *testing.T, path string, records []map[string]any) {
-	t.Helper()
-	b, err := json.Marshal(map[string]any{"Records": records})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = os.WriteFile(path, b, 0600); err != nil {
+	if err := os.WriteFile(path, out.Bytes(), 0600); err != nil {
 		t.Fatal(err)
 	}
 }

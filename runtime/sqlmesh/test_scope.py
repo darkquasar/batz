@@ -154,3 +154,73 @@ class MandatoryAudit(unittest.TestCase):
                         bridge.main(request_path)
                     self.assertFalse((root/'output1/built.json').exists())
                     self.assertTrue((root/'output0/built.json').is_file())
+
+class PipelineContract(unittest.TestCase):
+    def test_actual_adapter_contract_refuses_failed_required_checks_without_app(self):
+        import shutil
+        from unittest.mock import patch
+        import test_models
+        source = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch).resolve()
+            for name in ('config.yaml', 'models/synthetic-jsonl', 'internal/app/testdata/synthetic'):
+                path = root/name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if (source/name).is_dir():
+                    shutil.copytree(source/name, path)
+                else:
+                    shutil.copyfile(source/name, path)
+            (root/'models/synthetic-jsonl/required_checks.sql').write_text(
+                'MODEL (name probe.required_checks, kind FULL); '
+                'SELECT 1::BIGINT AS assertion_failures, 0::BIGINT AS capability_failures;')
+            with patch.object(test_models, 'ROOT', root), patch.dict(os.environ, BATZ_TEST_RUNTIME=os.environ.get('BATZ_TEST_RUNTIME', str(source/'runtime/.local'))):
+                with self.assertRaisesRegex(ValueError, 'semantic assertion'):
+                    test_models.main([root/'internal/app/testdata/synthetic/pipeline.yaml'], mode='adapters')
+
+    def test_new_owner_refreshes_shared_input_before_its_mandatory_audit(self):
+        import shutil
+        from unittest.mock import patch
+        from ruamel.yaml import YAML
+        import test_models
+        source = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as scratch:
+            root = Path(scratch).resolve()
+            shutil.copyfile(source/'config.yaml', root/'config.yaml')
+            shutil.copytree(source/'internal/app/testdata/synthetic', root/'fixtures')
+            shared = root/'models/shared'
+            shared.mkdir(parents=True)
+            (shared/'members.sql').write_text('MODEL (name common.members, kind FULL); SELECT count(*)::BIGINT AS members FROM batz_input.parsed;')
+            (root/'audits').mkdir()
+            (root/'audits/current.sql').write_text('AUDIT (name current_members); SELECT * FROM @this_model WHERE shared_count <> (SELECT count(*) FROM batz_input.parsed);')
+            manifests = []
+            for owner in ('alpha', 'charlie'):
+                models = root/'models'/owner
+                shutil.copytree(source/'models/synthetic-jsonl', models)
+                for model in models.glob('*.sql'):
+                    model.write_text(model.read_text().replace('probe.', owner+'.'))
+                output = models/'findings.sql'
+                output.write_text(output.read_text().replace('kind FULL)', 'kind FULL, audits (current_members))')
+                                  .replace('SELECT\n', 'SELECT\n h.members AS shared_count,\n', 1)
+                                  .replace('CROSS JOIN batz_input.build_context c', 'CROSS JOIN batz_input.build_context c CROSS JOIN common.members h'))
+                value = YAML(typ='safe').load((source/'internal/app/testdata/synthetic/pipeline.yaml').read_text())
+                value['name'] = owner
+                for key in ('staging','evidence','checks'):
+                    value['normalization'][key] = value['normalization'][key].replace('probe.',owner+'.')
+                value['routes']['local_raw']['output']['normalized']['models'] = {'findings':owner+'.findings'}
+                value['routes']['local_raw']['input']['config'] = 'repo://fixtures/collector.yaml'
+                data = (source/'internal/app/testdata/synthetic/events.jsonl').read_bytes()
+                if owner == 'charlie':
+                    data = data.splitlines(keepends=True)[0]
+                (root/('fixtures/'+owner+'.jsonl')).write_bytes(data)
+                expected = json.loads((source/'internal/app/testdata/synthetic/events.expected.json').read_text())
+                expected['rows'] = len(data.splitlines())
+                (root/('fixtures/'+owner+'.expected.json')).write_text(json.dumps(expected))
+                import hashlib
+                value['explain']['examples'] = [dict(id='fixture',route='local_raw',input='repo://fixtures/'+owner+'.jsonl',
+                     sha256=hashlib.sha256(data).hexdigest(),expectations='repo://fixtures/'+owner+'.expected.json')]
+                manifest = root/('pipelines/'+owner+'/pipeline.yaml')
+                manifest.parent.mkdir(parents=True)
+                manifest.write_text(json.dumps(value))
+                manifests.append(manifest)
+            with patch.object(test_models, 'ROOT', root), patch.dict(os.environ, BATZ_TEST_RUNTIME=os.environ.get('BATZ_TEST_RUNTIME', str(source/'runtime/.local'))):
+                test_models.main(manifests, mode='adapters')

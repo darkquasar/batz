@@ -9,3 +9,19 @@ test_synthetic_payload_remains_source_faithful:
       partial: true
       rows:
         - {observation_id: synthetic, payload: '{"id":"invented","extra":"retained"}', mapping_status: mapped}
+
+test_invented_dispositions_keep_accounting_separate:
+  model: probe.records
+  inputs:
+    batz_input.parsed:
+      rows:
+        - {observation_id: valid, payload: '{"id":"valid"}'}
+        - {observation_id: reject, payload: '{"disposition":"rejected"}'}
+        - {observation_id: unsupported, payload: '{"disposition":"unsupported"}'}
+  outputs:
+    query:
+      partial: true
+      rows:
+        - {observation_id: valid, mapping_status: mapped, mapping_reject_reason: null}
+        - {observation_id: reject, mapping_status: rejected, mapping_reject_reason: invented-reject}
+        - {observation_id: unsupported, mapping_status: unsupported, mapping_reject_reason: null}

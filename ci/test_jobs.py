@@ -64,6 +64,20 @@ class SelectedWorkers(unittest.TestCase):
             lanes.run_jobs([(2, worker(2)), (1, worker(1))], locks_root=Path(scratch) / 'locks')
             self.assertLessEqual(peak, 2, 'nested Go and job parallelism exceeded the host native budget')
 
+    def test_all_local_has_shared_and_batched_models_without_production_e2e(self):
+        from argparse import Namespace
+        from unittest.mock import patch
+        catalog = {'source': {'path': 'pipelines/source/pipeline.yaml'},
+                   'probe': {'path': 'internal/app/testdata/probe/pipeline.yaml'}}
+        args = Namespace(lane='all-local', pipelines=[], mode='both')
+        visited = []
+        with patch.object(lanes, 'run_jobs', lambda jobs: [work() for _,work in jobs]), \
+             patch.object(lanes, 'app', lambda: visited.append('app')), \
+             patch.object(lanes, 'fast', lambda catalog: visited.append('fast')), \
+             patch.object(lanes, 'models', lambda selected, catalog, mode: visited.append(('models', selected))):
+            lanes.native_jobs(args, sorted(catalog), catalog)
+        self.assertCountEqual(visited, ['fast', 'app', ('models', ['probe', 'source'])])
+
 
 if __name__ == '__main__':
     unittest.main()
