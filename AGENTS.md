@@ -1,5 +1,10 @@
 # Repository working instructions
 
+## Local instructions
+
+If a `REPOLOCAL.md` file exists at the repository root, read it before starting
+work. It holds machine-local instructions and is not tracked.
+
 ## Pipeline contribution contracts
 
 Use the [contributor guide](contributing.md) and [native contract criteria](docs/usage/pipeline-e2e.md).
