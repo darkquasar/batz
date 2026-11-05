@@ -22,6 +22,11 @@ routes:
           api_activity: cloudtrail.api_activity
 explain:
   examples:
+    - id: wiring
+      route: local_raw
+      input: repo://pipelines/aws-cloudtrail/fixtures/wiring.json
+      sha256: 6bc2b0ba730c37e754662425b5d5982743f8fca2aa8a9610390bedf04878ce10
+      expectations: repo://pipelines/aws-cloudtrail/fixtures/wiring.expected.json
     - id: api-read
       route: local_raw
       input: repo://pipelines/aws-cloudtrail/fixtures/api-read.json

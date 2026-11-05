@@ -25,15 +25,15 @@ same commands:
 ```sh
 ci/test fast
 ci/test app
-ci/test models aws-cloudtrail
-ci/test e2e aws-cloudtrail
+ci/test models aws-cloudtrail --mode native
+ci/test models aws-cloudtrail --mode adapters
 ci/test all-local
 ```
 
 Bare `go test ./...` runs the fast contracts. Native lanes require the qualified
 macOS ARM64 host and installed tools; requested missing work fails visibly.
-Each native invocation builds its own collector and dependency receipt in private
-scratch. `BATZ_TOOLCHAIN_ROOT` selects provisioned tools outside the checkout;
+App and adapter/combined-model invocations build their collector and dependency
+receipt in private scratch. Native-only model tests need no collector build. `BATZ_TOOLCHAIN_ROOT` selects provisioned tools outside the checkout;
 the local default is `runtime/.local`. Tests do not update installed assets or
 the tracked lock. Pipeline model tests use the first declared explain example as
 the representative adapter fixture and its declared route/checksum. The selector

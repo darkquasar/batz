@@ -1,6 +1,6 @@
 # ADR-001: Keep the test surface small and compositional
 
-Status: Accepted 2026-10-29; amended 2026-10-30 and 2026-11-04 by owner direction.
+Status: Accepted 2026-10-29; amended 2026-10-30, 2026-11-04 and 2026-11-05 by owner direction.
 Scope: Batz application, pipeline development and CI.
 This dated amendment extends the original cheapest-sufficient-layer decision;
 it replaces the blanket testing strategy with explicit ownership/selection rules.
@@ -31,7 +31,7 @@ application test suite.**
 | Pipeline mapping semantics, rejects and unsupported coverage | Batched native SQLMesh model tests with reviewed fixtures |
 | Engine-native types and timestamp precision | Explicit native SQL/reader probes grouped with existing execution |
 | Application wiring and model-only recovery | One representative real shared journey |
-| Pipeline E2E | Named route/fixture through collector, SQLMesh, publication and reader query |
+| Pipeline native contract | Actual adapter fixture through declared roots, required checks, production profile and exact origin/accounting validation |
 
 ```text
 +------------------+  reuse proof  +---------------------+
@@ -41,7 +41,7 @@ application test suite.**
                                             | add distinct evidence
                                             v
                                   +---------------------+
-                                  | Models/adapter/E2E  |
+                                  | Native contracts    |
                                   +---------------------+
 ```
 
@@ -52,9 +52,12 @@ application test suite.**
    only when freshness, repeatability or isolation is what they prove. Most
    fixtures need one or two distinguishing records; large acceptance examples
    run once at the sufficient layer, not once per pipeline or flag combination.
-3. A pipeline E2E proves its named route and fixture, not all source variants.
+3. A pipeline native contract proves its named route and fixture, not all source variants.
    Transport-only routes reuse mapping proof and test actual acquisition/fidelity
-   separately. A different execution graph adds representative integration proof.
+   separately. A different pipeline model graph requires native contract proof.
+   Targeted core interaction proof uses shared synthetic inputs; routine source
+   contributions require no application E2E. Any specifically justified pipeline
+   qualification belongs with its owning pipeline repository.
    Preserve specifically promised real transport/platform qualification, including
    local/R2 normalized parity. Avoid blanket feature/pipeline/route/platform products.
 4. Use native SQLMesh tests for mapping breadth, not a new test framework or fake
@@ -111,3 +114,15 @@ eight expectation checks used one Python process/0.04 s. Those observations
 support startup reduction, not a universal latency or production-scale promise.
 Local cost measurements and hosted CI execution are separate qualifications.
 The [CI guide](../usage/ci.md) describes selected jobs and setup costs.
+
+### Owner amendment 2026-11-05: shared application proof
+
+S3.2-CI supersedes the routine per-pipeline application E2E requirement. One
+representative shared synthetic journey owns run-to-reader behavior; focused
+real-boundary safety tests remain. Actual pipeline adapter/native contracts own
+source-to-model proof without app workspaces, publication or readers. Native YAML
+test-only edits select native tests, even for the synthetic pipeline. Shared SQL
+selects native consumers and app only if consumed by the shared journey. Core,
+collector, runtime, runtime fixture and relevant global/dependency changes select
+shared app coverage. Optional identity and explicit transport/platform promises
+retain their prior meaning.

@@ -219,7 +219,8 @@ func TestAppUndeclaredModelSelectionRefusedBeforeAcquisition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, model := range []string{"probe.missing", "cloudtrail.api_activity"} {
+	writeContextFile(t, filepath.Join(root, "models/foreign/findings.sql"), "MODEL (name foreign.findings, kind FULL); SELECT * FROM batz_input.parsed;")
+	for _, model := range []string{"probe.missing", "foreign.findings"} {
 		t.Run(model, func(t *testing.T) {
 			changed := strings.Replace(string(b), "probe.findings", model, 1)
 			if changed == string(b) {
@@ -235,7 +236,7 @@ func TestAppUndeclaredModelSelectionRefusedBeforeAcquisition(t *testing.T) {
 			if code != 2 {
 				t.Fatalf("model selection ignored: exit=%d %s %s", code, &diagnostics, &out)
 			}
-			if model == "cloudtrail.api_activity" && !strings.Contains(diagnostics.String(), "unsupported-input-scope") {
+			if model == "foreign.findings" && !strings.Contains(diagnostics.String(), "unsupported-input-scope") {
 				t.Fatalf("foreign input diagnostic lost: %s", &diagnostics)
 			}
 			if _, err := os.Stat(workspace); !os.IsNotExist(err) {
@@ -245,7 +246,9 @@ func TestAppUndeclaredModelSelectionRefusedBeforeAcquisition(t *testing.T) {
 	}
 }
 
-func TestAppSharedRecoveryJourney(t *testing.T) {
+// TestAppSharedPipelineJourney is the representative synthetic run-to-reader proof.
+// Recovery and reader isolation reuse its successful native executions.
+func TestAppSharedPipelineJourney(t *testing.T) {
 	root := nativeContent(t)
 	data, err := os.ReadFile(filepath.Join(root, "internal/app/testdata/synthetic/events.jsonl"))
 	if err != nil {
@@ -278,8 +281,11 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if err := os.Rename(filepath.Join(filepath.Dir(modelPath), "member_count.sql"), filepath.Join(shared, "member_count.sql")); err != nil {
 		t.Fatal(err)
 	}
-	poison := filepath.Join(root, "models/aws-cloudtrail/unrelated.sql")
-	if err := os.WriteFile(poison, []byte("MODEL (name cloudtrail.unrelated, kind FULL); SELECT error('unrelated model executed') AS value FROM probe.member_count;"), 0600); err != nil {
+	poison := filepath.Join(root, "models/foreign/unrelated.sql")
+	if err := os.MkdirAll(filepath.Dir(poison), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(poison, []byte("MODEL (name foreign.unrelated, kind FULL); SELECT error('unrelated model executed') AS value FROM probe.member_count;"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	prior := runSharedFixture(t, root, workspace, input)
@@ -300,7 +306,10 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(workspace, ".batz/parsed/uncommitted/parsed.parquet"), parsed, 0600); err != nil {
 		t.Fatal(err)
 	}
-	other := runSharedFixture(t, root, workspace, input, "--binding-id", "other")
+	other := runSharedFixture(t, root, workspace, filepath.Join(root, "internal/app/testdata/synthetic/events.jsonl"), "--binding-id", "other")
+	if other.Outcome != "published" || other.Quality == nil || *other.Quality != "complete" || other.ParsedRevision == nil || other.Catalog == nil {
+		t.Fatalf("incomplete synthetic publication: %+v", other)
+	}
 	assertNativeResources(t, prior)
 	var records bytes.Buffer
 	for i := range 6 {
@@ -391,20 +400,12 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if _, collected := recovered.Resources["collection"]; collected {
 		t.Fatal("model-only retry collected source data")
 	}
-	if got := string(query(t, root, *recovered.Catalog, "SELECT count(*) FROM demo.findings")); got != "[[7]]" {
-		t.Fatal(got)
+	wantOther, _ := json.Marshal([]any{[]any{"observed", "invented-user", "TIMESTAMP_NS", int64(1792929600000000001), "retained", 1, true, string(*other.ParsedRevision)}, []any{"observed", "other-user", "TIMESTAMP_NS", int64(1792929600123000000), nil, 1, true, string(*other.ParsedRevision)}})
+	if got := query(t, root, *other.Catalog, `SELECT event.action,user.id,typeof("@timestamp"),epoch_ns("@timestamp"),json_extract_string(batz.source_payload,'$.extra'),len(batz.origins),length(batz.origins[1].source_event_id)>0,batz.origins[1].parsed_revision FROM other.findings ORDER BY event.id`); !bytes.Equal(got, wantOther) {
+		t.Fatalf("synthetic wiring: got %s want %s", got, wantOther)
 	}
-	if got := string(query(t, root, *prior.Catalog, "SELECT count(*) FROM demo.findings")); got != "[[1]]" {
-		t.Fatal(got)
-	}
-	if got := string(query(t, root, *other.Catalog, "SELECT count(*) FROM other.findings")); got != "[[1]]" {
-		t.Fatal(got)
-	}
-	if got := string(query(t, root, *recovered.Catalog, `SELECT count(*),count(DISTINCT batz.origins[1].source_event_id),count(DISTINCT batz.input_digest),count(DISTINCT batz.evaluation_nonce),min(year("@timestamp")) FROM demo.findings`)); got != "[[7,7,1,1,2020]]" {
+	if got := string(query(t, root, *recovered.Catalog, `SELECT count(*),count(DISTINCT batz.origins[1].source_event_id),count(DISTINCT batz.input_digest),count(DISTINCT batz.evaluation_nonce),min(year("@timestamp")),list(DISTINCT shared_count) FROM demo.findings`)); got != "[[7,7,1,1,2020,[7]]]" {
 		t.Fatalf("exact fresh membership: %s", got)
-	}
-	if got := string(query(t, root, *recovered.Catalog, "SELECT DISTINCT shared_count FROM demo.findings")); got != "[[7]]" {
-		t.Fatalf("undeclared FULL model kept stale membership: %s", got)
 	}
 	finishReader(*recovered.Catalog, 7)
 	testDir := filepath.Join(root, "tests/synthetic-jsonl")
@@ -426,7 +427,7 @@ func TestAppSharedRecoveryJourney(t *testing.T) {
 	if err := os.WriteFile(definition, manifest, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(poison, []byte("MODEL (name cloudtrail.unrelated, kind FULL); SELECT error('B-only edit executed') AS value;"), 0600); err != nil {
+	if err := os.WriteFile(poison, []byte("MODEL (name foreign.unrelated, kind FULL); SELECT error('B-only edit executed') AS value;"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	retried.Reset()

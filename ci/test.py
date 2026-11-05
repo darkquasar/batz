@@ -18,7 +18,7 @@ import time
 
 # -I deliberately excludes the working directory from Python's import path.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from pipelines import ROOT, reference, tag, working_catalog
+from pipelines import ROOT, reference, working_catalog
 
 
 _worker = threading.local()
@@ -148,7 +148,7 @@ def whitespace():
 
 
 def fast(catalog):
-    tags = ','.join(['batz_app', *[tag(p) for p in sorted(catalog)]])
+    tags = 'batz_app'
     run_jobs([
         (0, lambda: command(['go', 'test', './...', '-p', '1', '-count=1'])),
         (0, lambda: command(['go', 'vet', '-p', '1', '-tags', tags, './...'])),
@@ -165,10 +165,10 @@ def app():
                  "import sys,unittest,os,tempfile; scratch=tempfile.TemporaryDirectory(prefix='batz-contracts-'); "
                  "os.environ['SQLMESH_HOME']=scratch.name; os.environ['SQLMESH__DISABLE_ANONYMIZED_ANALYTICS']='true'; sys.path[:0]=['runtime/sqlmesh','ci']; "
                  "suite=unittest.TestLoader().loadTestsFromNames(['test_runner','test_scope','native_select_test']); "
-                 "result=unittest.TextTestRunner(verbosity=1).run(suite); sys.exit(not result.wasSuccessful())"])
+                 "result=unittest.TextTestRunner(verbosity=1).run(suite); sys.exit(not result.wasSuccessful() or bool(result.skipped))"])
     run_jobs([
-        (1, lambda: command(['go','test','-tags','batz_app','./internal/app','-run','^TestApp','-p','1','-count=1'])),
-        (1, lambda: command(['go','test','-tags','batz_app','./internal/run','./internal/scratch','-run','^TestApp','-p','1','-count=1'])),
+        (1, lambda: go_tests(['go','test','-json','-tags','batz_app','./internal/app','-run','^TestApp','-p','1','-count=1'], 'TestApp', required={'TestAppSharedPipelineJourney'})),
+        (1, lambda: go_tests(['go','test','-json','-tags','batz_app','./internal/run','./internal/scratch','-run','^TestApp','-p','1','-count=1'], 'TestApp')),
         (1, python_contracts),
     ])
 
@@ -179,22 +179,62 @@ def models(selected, catalog, mode='both'):
              *[ROOT/catalog[identity]['path'] for identity in sorted(set(selected))]])
 
 
-def e2e(identity):
-    source = ROOT / 'internal/app' / (identity.replace('-', '_') + '_e2e_test.go')
-    if not source.is_file() or ('//go:build ' + tag(identity)) not in source.read_text():
-        raise ValueError('missing requested E2E tests: ' + identity)
-    command(['go', 'test', '-tags', tag(identity), './internal/app', '-run', '^TestE2E', '-p', '1', '-count=1'])
+def go_tests(argv, prefix, required=()):
+    """Require executed, non-skipped tests in every requested Go package."""
+    started = time.monotonic()
+    print('+ ' + ' '.join(argv), flush=True)
+    ran, passed, skipped = set(), set(), set()
+    packages, package_pass = set(), set()
+    with subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                          text=True, pass_fds=getattr(_worker, 'fds', ())) as process:
+        for line in process.stdout:
+            try:
+                event = json.loads(line)
+            except ValueError:
+                print(line, end='', flush=True)
+                continue
+            print(event.get('Output', ''), end='', flush=True)
+            name, action = event.get('Test', ''), event.get('Action')
+            package = event.get('Package', '')
+            if action == 'start':
+                packages.add(package)
+            if name.startswith(prefix):
+                name = (package, name)
+                if action == 'run':
+                    ran.add(name)
+                elif action == 'pass':
+                    passed.add(name)
+                elif action == 'skip':
+                    skipped.add(name)
+            elif not name and action == 'pass':
+                package_pass.add(package)
+        code = process.wait()
+    print(json.dumps({'kind': 'test', 'command': argv, 'exit': code,
+                      'seconds': round(time.monotonic()-started, 3),
+                      'executed': sorted(ran), 'passed': sorted(passed), 'skipped': sorted(skipped)}), flush=True)
+    if code:
+        raise subprocess.CalledProcessError(code, argv)
+    if skipped:
+        raise ValueError('selected '+prefix+' tests skipped: ' + str(sorted(skipped)))
+    if not any('/' not in name for package,name in ran & passed) or ran != passed:
+        raise ValueError('missing executed passing '+prefix+' tests')
+    if not set(required) <= {name for package,name in passed}:
+        raise ValueError('missing required shared journey: '+str(sorted(required)))
+    if not package_pass or not packages <= package_pass:
+        raise ValueError('missing passing '+prefix+' package result')
+    if any(not any(p == package and '/' not in name for p,name in ran & passed) for package in packages):
+        raise ValueError('missing executed passing '+prefix+' tests in requested package')
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('lane', choices=['fast', 'app', 'models', 'e2e', 'all-local'])
+    parser.add_argument('lane', choices=['fast', 'app', 'models', 'all-local'])
     parser.add_argument('pipelines', nargs='*')
     parser.add_argument('--mode', choices=['both','native','adapters'],default='both')
     args = parser.parse_intermixed_args()
     catalog = working_catalog()
-    if args.pipelines and args.lane not in ('models', 'e2e'):
-        raise ValueError('pipeline arguments require models or e2e lane')
+    if args.pipelines and args.lane != 'models':
+        raise ValueError('pipeline arguments require models lane')
     for identity in args.pipelines:
         if identity not in catalog:
             raise ValueError('unknown requested pipeline: ' + identity)
@@ -218,9 +258,6 @@ def native_jobs(args, selected, catalog):
     if args.lane in ('models', 'all-local'):
         mode = args.mode
         jobs.append((1, lambda: models(selected,catalog,mode)))
-    if args.lane in ('e2e', 'all-local'):
-        for identity in selected:
-            jobs.append((1, lambda identity=identity: e2e(identity)))
     run_jobs(jobs)
     return 0
 

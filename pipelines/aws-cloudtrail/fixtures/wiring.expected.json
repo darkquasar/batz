@@ -1,0 +1,1 @@
+{"apiVersion":"batz/v0alpha1","kind":"SampleExpectations","dataset":"api_activity","rows":2,"values":{"event.action":"object-read","event.outcome":"success","user.id":"invented-actor","batz.time.fraction_digits":9,"@timestamp":"2026-10-25T12:00:00.000000002"}}

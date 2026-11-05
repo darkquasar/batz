@@ -8,4 +8,5 @@ SELECT
   'norm_event_variant_id':sha256(s.observation_id),'origins':[{'source_event_id':s.observation_id,'parsed_revision':s.parsed_revision,'file':s.parsed_file,'row':s.parsed_row}],
   'source_payload':s.payload,'input_revision':c.input_revision,'input_digest':c.input_digest,
   'attempt_id':c.attempt_id,'evaluation_nonce':c.evaluation_nonce} AS batz
-FROM probe.records s CROSS JOIN batz_input.build_context c;
+FROM probe.records s CROSS JOIN batz_input.build_context c
+WHERE s.mapping_status='mapped';

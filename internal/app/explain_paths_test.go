@@ -14,13 +14,13 @@ import (
 
 func workspaceAssetDefinition(t *testing.T, root string) string {
 	t.Helper()
-	path := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
+	path := filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	data = bytes.ReplaceAll(data, []byte("repo://."), []byte("workspace://models"))
-	data = bytes.ReplaceAll(data, []byte("repo://pipelines/aws-cloudtrail/input/local-records.yaml"), []byte("workspace://collector.yaml"))
+	data = bytes.ReplaceAll(data, []byte("repo://internal/app/testdata/synthetic/collector.yaml"), []byte("workspace://collector.yaml"))
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -28,12 +28,12 @@ func workspaceAssetDefinition(t *testing.T, root string) string {
 }
 
 func TestUnresolvedWorkspaceAssetsRemainSymbolic(t *testing.T) {
-	root := previewContent(t)
+	root := nativeContent(t)
 	definition := workspaceAssetDefinition(t, root)
 	// A literal workspace: directory must not become an implicit URI fallback.
 	fake := filepath.Join(root, "pipelines/workspace:")
 	copyNativeCatalog(t, root, filepath.Join(fake, "models"))
-	data, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/input/local-records.yaml"))
+	data, err := os.ReadFile(filepath.Join(root, "internal/app/testdata/synthetic/collector.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestCallerRelativeWorkspaceOverridesTheBindingSelector(t *testing.T) {
 	caller := t.TempDir()
 	t.Chdir(caller)
 	workspace := filepath.Join(caller, "selected")
-	data, err := os.ReadFile(filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"))
+	data, err := os.ReadFile(filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestCallerRelativeWorkspaceOverridesTheBindingSelector(t *testing.T) {
 	})
 	t.Run("run preflight", func(t *testing.T) {
 		var out, diagnostics bytes.Buffer
-		code := app.Execute([]string{"run", "--project", root, "--binding", binding, "--workspace", "./selected", "--input", "path=repo://pipelines/aws-cloudtrail/fixtures/api-read.json"}, &out, &diagnostics)
+		code := app.Execute([]string{"run", "--project", root, "--binding", binding, "--workspace", "./selected", "--input", "path=repo://internal/app/testdata/synthetic/events.jsonl"}, &out, &diagnostics)
 		if code != 3 || !strings.Contains(diagnostics.String(), "storage configuration") {
 			t.Fatalf("definition mismatch hid the selected unsupported capability: %d %s %s", code, &out, &diagnostics)
 		}
@@ -99,7 +99,7 @@ func TestCallerRelativeWorkspaceOverridesTheBindingSelector(t *testing.T) {
 }
 
 func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) {
-	root := previewContent(t)
+	root := nativeContent(t)
 	path := filepath.Join(root, "runtime/dependencies.lock.json")
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -134,7 +134,7 @@ func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) 
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			args := []string{"explain", filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
+			args := []string{"explain", filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml"), "--project", root, "--level", "3", "--format", "json"}
 			args = append(args, tt.args...)
 			var out, diagnostics bytes.Buffer
 			code := app.Execute(args, &out, &diagnostics)
@@ -153,13 +153,13 @@ func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) 
 }
 
 func TestDeclaredOutputDoesNotInventNativeFilesOrStructures(t *testing.T) {
-	root := previewContent(t)
-	definition := filepath.Join(root, "pipelines/aws-cloudtrail/pipeline.yaml")
+	root := nativeContent(t)
+	definition := filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml")
 	data, err := os.ReadFile(definition)
 	if err != nil {
 		t.Fatal(err)
 	}
-	data = bytes.ReplaceAll(data, []byte("api_activity: cloudtrail.api_activity"), []byte("authentication: cloudtrail.authentication"))
+	data = bytes.ReplaceAll(data, []byte("findings: probe.findings"), []byte("authentication: probe.authentication"))
 	if err := os.WriteFile(definition, data, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestDeclaredOutputDoesNotInventNativeFilesOrStructures(t *testing.T) {
 	}
 	found := false
 	for _, stage := range report.Stages {
-		if strings.HasSuffix(stage.ID, "/api_activity") {
+		if strings.HasSuffix(stage.ID, "/findings") {
 			t.Fatalf("invented output: %+v", stage)
 		}
 		if strings.HasSuffix(stage.ID, "/authentication") {

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run a pipeline's actual adapter and native SQLMesh tests in private scratch."""
+from collections import Counter
 import hashlib
 import json
 import os
@@ -17,11 +18,13 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 sys.path.insert(0, str(ROOT / 'ci'))
-from pipelines import reference
+from pipelines import reference, validate_manifest
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from catalog import load_context, snapshot, configure_private, execution_scope, model_sources
+from runner import validate_contract, check_build, verify_published, quote, ident
+from inspect_preview import reviewed_expectations, check_reviewed_values
 
 def adapter(manifest_path, scratch):
     declared = Path(manifest_path).resolve().relative_to(ROOT).as_posix()
@@ -76,10 +79,10 @@ def adapter(manifest_path, scratch):
                 {'name': 'batz_input.build_context', 'columns': {k: 'VARCHAR' for k in ('input_revision', 'input_digest', 'attempt_id', 'evaluation_nonce')}}]
 
     connection.close()
-    return manifest, external, parsed
+    return manifest, external, parsed, example, declared
 
 def manifest_contract(manifest, route):
-    return dict(manifest['normalization'], pipeline=manifest['name'],
+    return dict(manifest['normalization'], apiVersion='batz-execution/v0alpha1', pipeline=manifest['name'],
                 outputs=route['output']['normalized']['models'])
 
 
@@ -106,8 +109,64 @@ def test_scope(context, owners, execution):
     return selected
 
 
+
+def pipeline_contract(context, manifest, parsed, example, declared, scratch, evaluated):
+    """Actual adapter to declared native roots, with production validation only.
+
+    The private engine already belongs to this selected models batch. No Batz
+    workspace, inventory, publication or separate reader is created.
+    """
+    contract = manifest_contract(manifest, manifest['routes'][example['route']])
+    selected = validate_contract(context, contract)
+    connection = context.engine_adapter.connection
+    connection.execute('CREATE SCHEMA IF NOT EXISTS batz_input')
+    connection.execute("CREATE OR REPLACE VIEW batz_input.parsed AS SELECT *, 'revision' AS parsed_revision, 'file' AS parsed_file, file_row_number::BIGINT AS parsed_row FROM read_parquet("+quote(parsed)+", file_row_number=true)")
+    request = dict(contract=contract, input_revision='revision', input_digest=hashlib.sha256(parsed.read_bytes()).hexdigest(),
+                   attempt_id=scratch.name, evaluation_nonce=scratch.name)
+    connection.execute('CREATE OR REPLACE TABLE batz_input.build_context AS SELECT '+
+                       ','.join(quote(request[k])+' AS '+ident(k) for k in
+                                ('input_revision','input_digest','attempt_id','evaluation_nonce')))
+    expected = Counter(connection.execute('SELECT observation_id,parsed_revision,parsed_file,parsed_row,payload FROM batz_input.parsed').fetchall())
+    # Refresh shared input before new owner roots/audits can observe it. The
+    # pinned API must include local additions during the same restatement plan.
+    refresh = {'restate_models':selected, 'always_include_local_changes':True} if evaluated.intersection(selected) else {}
+    plan = context.plan_builder(skip_tests=True, execution_time='2026-01-03',
+                                select_models=selected, backfill_models=selected, **refresh).build()
+    context.apply(plan)
+    evaluated.update(selected)
+    adapter_db = context.engine_adapter
+    proof = check_build(request, sum(expected.values()), adapter_db.fetchall(
+        'SELECT input_revision,input_digest,attempt_id,evaluation_nonce,observations,mapped,unsupported,rejected FROM '+context.table_name(contract['evidence'])),
+        adapter_db.fetchall('SELECT assertion_failures,capability_failures FROM '+context.table_name(contract['checks'])))
+    binding = 'batz_contract'
+    connection.execute('CREATE SCHEMA IF NOT EXISTS '+binding)
+    for name, model in [('source_staging',contract['staging']), *contract['outputs'].items()]:
+        connection.execute('CREATE OR REPLACE VIEW '+binding+'.'+ident(name)+' AS SELECT * FROM '+context.table_name(model))
+    request['reject_path'] = str(scratch/'rejects.parquet')
+    connection.execute('COPY (SELECT * FROM '+binding+".source_staging WHERE mapping_status='rejected') TO "+quote(request['reject_path'])+' (FORMAT PARQUET)')
+    verify_published(connection, binding, request, expected, proof)
+    probes = {}
+    for name in contract['outputs']:
+        table = binding+'.'+ident(name)
+        probes[name] = connection.execute('SELECT typeof("@timestamp"),epoch_ns("@timestamp") FROM '+table).fetchall()
+    if example.get('expectations'):
+        expected_values = reviewed_expectations(ROOT/reference(declared,example['expectations']), contract['outputs'])
+        table = binding+'.'+ident(expected_values['dataset'])
+        records = [json.loads(row[0]) for row in connection.execute('SELECT to_json(t) FROM '+table+' t').fetchall()]
+        types = connection.execute('SELECT * FROM '+table+' LIMIT 0').description
+        for record in records:
+            for column, native, *_ in types:
+                if native.id.startswith('timestamp') and record[column] is not None:
+                    record[column] = record[column].replace(' ', 'T', 1)
+        check_reviewed_values(expected_values, records, len(records))
+    print(json.dumps({'pipeline_contract':manifest['name'], 'example':example['id'],
+                      'models':selected, 'observations':sum(expected.values()),
+                      'native_time_probes':probes, 'checks_passed':True}),flush=True)
+
+
 def main(manifest_paths, mode='both', all_tests=False):
-    manifests = [yaml.load(Path(path).read_text()) for path in manifest_paths]
+    manifests = [validate_manifest(yaml.load(Path(path).read_text()),
+                    Path(path).resolve().relative_to(ROOT.resolve()).as_posix()) for path in manifest_paths]
     if len({m['name'] for m in manifests}) != len(manifests):
         raise ValueError('duplicate requested pipeline')
     with tempfile.TemporaryDirectory(prefix='batz-models-') as directory:
@@ -134,19 +193,9 @@ def main(manifest_paths, mode='both', all_tests=False):
                 scopes = {}
                 for manifest in manifests:
                     scopes[manifest['name']] = test_scope(context, {manifest['name']}, set().union(*(set(execution_scope(context,manifest_contract(manifest,route),manifest['name'])) for route in manifest['routes'].values())))
-                # The actual adapter output feeds its native staging query. No
-                # duplicate full-project unit suite or mirrored input schema.
-                for manifest,external,parsed in proofs:
-                    adapter_db = context.engine_adapter
-                    adapter_db.execute('CREATE SCHEMA IF NOT EXISTS batz_input')
-                    escaped = str(parsed).replace("'", "''")
-                    adapter_db.execute("CREATE OR REPLACE VIEW batz_input.parsed AS SELECT *, 'revision' AS parsed_revision, 'file' AS parsed_file, file_row_number::BIGINT AS parsed_row FROM read_parquet('"+escaped+"',file_row_number=true)")
-                    rendered = context.render(manifest['normalization']['staging'], expand=True)
-                    count = adapter_db.fetchone('SELECT count(*) FROM ('+rendered.sql(dialect='duckdb')+')')[0]
-                    actual = adapter_db.fetchone('SELECT count(*) FROM batz_input.parsed')[0]
-                    if count != actual:
-                        raise ValueError('actual adapter/staging integration lost observations')
-                    print(json.dumps({'adapter':manifest['name'],'actual_staging_rows':count}),flush=True)
+                evaluated = set()
+                for index,(manifest,external,parsed,example,declared) in enumerate(proofs):
+                    pipeline_contract(context, manifest, parsed, example, declared, scratch/('adapter-'+str(index)), evaluated)
                 if mode != 'adapters':
                     for owner,scope in scopes.items():
                         if not context.select_tests(model_names=scope):

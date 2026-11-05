@@ -10,6 +10,8 @@ import (
 	"testing"
 )
 
+// nativeContent always isolates framework-owned synthetic assets.
+// Shared tests cannot load production pipeline content through this helper.
 func nativeContent(t *testing.T) string {
 	t.Helper()
 	root, err := filepath.Abs("../..")
@@ -17,7 +19,8 @@ func nativeContent(t *testing.T) string {
 		t.Fatal(err)
 	}
 	content := t.TempDir()
-	for _, dir := range []string{"pipelines", "models", "tests", "config.yaml", "runtime/sqlmesh", "internal/app/testdata/synthetic"} {
+	assets := []string{"internal/app/testdata/synthetic", "models/synthetic-jsonl", "tests/synthetic-jsonl"}
+	for _, dir := range append([]string{"config.yaml", "runtime/sqlmesh"}, assets...) {
 		copyTree(t, filepath.Join(root, dir), filepath.Join(content, dir))
 	}
 	local := os.Getenv("BATZ_TEST_RUNTIME")

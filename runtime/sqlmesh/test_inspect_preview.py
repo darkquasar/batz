@@ -17,10 +17,14 @@ spec.loader.exec_module(preview)
 
 class ReviewedExpectations(unittest.TestCase):
     def setUp(self):
-        self.expected = json.loads((root / "pipelines/aws-cloudtrail/fixtures/api-read.expected.json").read_text())
+        self.expected = {"apiVersion": "batz/v0alpha1", "kind": "SampleExpectations",
+                         "dataset": "findings", "rows": 1,
+                         "values": {"event.action": "observed", "user.id": "invented-actor",
+                                    "@timestamp": "2026-10-25T12:00:00",
+                                    "batz.time.fraction_digits": 0}}
         self.record = {
-            "event": {"action": "object-read"},
-            "user": {"id": "arn:aws:iam::111122223333:user/example-responder"},
+            "event": {"action": "observed"},
+            "user": {"id": "invented-actor"},
             "@timestamp": "2026-10-25T12:00:00",
             "source": {"ip": "192.0.2.10"},
             "batz": {"time": {"original": "2026-10-25T12:00:00Z", "fraction_digits": 0}},
@@ -31,7 +35,7 @@ class ReviewedExpectations(unittest.TestCase):
 
     def load(self, expected):
         self.path.write_text(json.dumps(expected))
-        return preview.reviewed_expectations(self.path, {"api_activity"})
+        return preview.reviewed_expectations(self.path, {"findings"})
 
     def assert_integrity_failure(self, function, *args):
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
@@ -51,20 +55,20 @@ class ReviewedExpectations(unittest.TestCase):
 
     def test_malformed_document(self):
         self.path.write_text("[")
-        self.assert_integrity_failure(preview.reviewed_expectations, self.path, {"api_activity"})
+        self.assert_integrity_failure(preview.reviewed_expectations, self.path, {"findings"})
 
     def test_boolean_row_count(self):
         self.expected["rows"] = True
         self.assert_integrity_failure(self.load, self.expected)
 
     def test_missing_expected_field(self):
-        self.expected["values"] = {"event.missing": "object-read"}
+        self.expected["values"] = {"event.missing": "observed"}
         self.assert_integrity_failure(preview.check_reviewed_values,
                                       self.load(self.expected), [self.record], 1)
 
     def test_wrong_value(self):
         wrong = deepcopy(self.record)
-        wrong["event"]["action"] = "object-write"
+        wrong["event"]["action"] = "wrong-action"
         self.assert_integrity_failure(preview.check_reviewed_values,
                                       self.load(self.expected), [wrong], 1)
 

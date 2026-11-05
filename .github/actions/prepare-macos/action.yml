@@ -7,6 +7,14 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Resolve private tool and cache paths
+      shell: bash
+      run: |
+        echo "BATZ_TOOLCHAIN_ROOT=$RUNNER_TEMP/batz-toolchain" >> "$GITHUB_ENV"
+        echo "BATZ_DOWNLOAD_CACHE=$RUNNER_TEMP/batz-cache/downloads" >> "$GITHUB_ENV"
+        echo "GOMODCACHE=$RUNNER_TEMP/batz-cache/gomod" >> "$GITHUB_ENV"
+        echo "GOCACHE=$RUNNER_TEMP/batz-cache/gocache" >> "$GITHUB_ENV"
+        echo "GOPATH=$RUNNER_TEMP/batz-gopath" >> "$GITHUB_ENV"
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: |
@@ -17,7 +25,7 @@ runs:
       if: inputs.build-cache == 'true'
       with:
         path: ${{ env.GOCACHE }}
-        key: batz-build-macos-15-arm64-v2-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}-${{ matrix.pipeline }}
+        key: batz-build-macos-15-arm64-v3-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}
     - name: Prepare pinned dependencies
       shell: bash
       run: python3 -I ci/prepare-macos.py

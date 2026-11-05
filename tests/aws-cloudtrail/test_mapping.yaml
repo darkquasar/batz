@@ -39,6 +39,15 @@ test_time_classification_and_offset:
         - observation_id: offset
           binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T14:00:00+02:00"}'
+        - observation_id: nano_z
+          binding_id: fixture
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T12:00:00.000000001Z"}'
+        - observation_id: nano_offset
+          binding_id: fixture
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T22:00:00.000000002+10:00"}'
+        - observation_id: coarse
+          binding_id: fixture
+          payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"eventTime":"2026-10-25T12:00:00.123Z"}'
         - observation_id: undated
           binding_id: fixture
           payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"}}'
@@ -55,40 +64,71 @@ test_time_classification_and_offset:
     query:
       partial: true
       rows:
-        - {observation_id: offset, mapping_status: mapped, original_offset: '+02:00', occurrence_time: '2026-10-25 12:00:00'}
-        - {observation_id: undated, mapping_status: mapped, original_offset: null, occurrence_time: null}
-        - {observation_id: malformed, mapping_status: rejected, original_offset: Z, occurrence_time: null}
-        - {observation_id: too_precise, mapping_status: unavailable, original_offset: Z, occurrence_time: null}
-        - {observation_id: out_of_range, mapping_status: unavailable, original_offset: Z, occurrence_time: null}
+        - {observation_id: offset, mapping_status: mapped, original_offset: '+02:00', occurrence_time: '2026-10-25 12:00:00', fraction_digits: 0}
+        - {observation_id: nano_z, mapping_status: mapped, original_offset: Z, occurrence_time: '2026-10-25 12:00:00.000000001', fraction_digits: 9}
+        - {observation_id: nano_offset, mapping_status: mapped, original_offset: '+10:00', occurrence_time: '2026-10-25 12:00:00.000000002', fraction_digits: 9}
+        - {observation_id: coarse, mapping_status: mapped, original_offset: Z, occurrence_time: '2026-10-25 12:00:00.123', fraction_digits: 3}
+        - {observation_id: undated, mapping_status: mapped, original_offset: null, occurrence_time: null, fraction_digits: null}
+        - {observation_id: malformed, mapping_status: rejected, original_offset: Z, occurrence_time: null, fraction_digits: 0}
+        - {observation_id: too_precise, mapping_status: unavailable, original_offset: Z, occurrence_time: null, fraction_digits: 10}
+        - {observation_id: out_of_range, mapping_status: unavailable, original_offset: Z, occurrence_time: null, fraction_digits: 0}
 test_reviewed_api_read_semantics:
   model: cloudtrail.api_activity
   inputs:
     cloudtrail.source_staging:
-      columns: {occurrence_time: TIMESTAMP_NS, original_time: VARCHAR, original_offset: VARCHAR, fraction_digits: INTEGER}
+      columns: {occurrence_time: TIMESTAMP_NS, original_time: VARCHAR,
+          original_offset: VARCHAR, fraction_digits: INTEGER}
       rows:
-        - observation_id: source
-          mapping_status: mapped
-          payload: '{"eventID":"read-1","eventSource":"s3.amazonaws.com","eventName":"GetObject","userIdentity":{"arn":"arn:aws:iam::111122223333:user/example-responder","accountId":"111122223333"},"recipientAccountId":"444455556666","awsRegion":"ap-southeast-2","sourceIPAddress":"AWS Internal"}'
-          caller: AWS Internal
-          occurrence_time: null
-          original_time: null
-          original_offset: null
-          fraction_digits: null
-          parsed_revision: revision
-          parsed_file: file
-          parsed_row: 0
-          batz: {source_event_id: source, logical_event_id: logical, norm_event_variant_id: variant}
+      - observation_id: source
+        mapping_status: mapped
+        payload: '{"eventID":"read-1","eventSource":"s3.amazonaws.com","eventName":"GetObject","userIdentity":{"arn":"arn:aws:iam::111122223333:user/example-responder","accountId":"111122223333"},"recipientAccountId":"444455556666","awsRegion":"ap-southeast-2","sourceIPAddress":"AWS
+          Internal"}'
+        caller: AWS Internal
+        occurrence_time:
+        original_time:
+        original_offset:
+        fraction_digits:
+        parsed_revision: revision
+        parsed_file: file
+        parsed_row: 0
+        batz: {source_event_id: source, logical_event_id: logical,
+            norm_event_variant_id: variant}
+      - observation_id: ip-source
+        mapping_status: mapped
+        payload: '{"eventID":"read-ip","eventSource":"s3.amazonaws.com","eventName":"GetObject","userIdentity":{"arn":"arn:aws:iam::111122223333:user/example-responder","accountId":"111122223333"},"recipientAccountId":"444455556666","awsRegion":"ap-southeast-2","sourceIPAddress":"AWS
+          Internal"}'
+        caller: 192.0.2.10
+        occurrence_time:
+        original_time:
+        original_offset:
+        fraction_digits:
+        parsed_revision: revision
+        parsed_file: file
+        parsed_row: 0
+        batz:
+          source_event_id: ip-source
+          logical_event_id:
+          norm_event_variant_id: ip-variant
     batz_input.build_context:
       rows:
-        - {input_revision: revision, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
+      - {input_revision: revision, input_digest: digest, attempt_id: attempt,
+          evaluation_nonce: nonce}
   outputs:
     query:
       partial: true
       rows:
-        - event: {kind: event, category: [web], type: [access], action: object-read, outcome: success, provider: s3.amazonaws.com, id: read-1}
-          user: {id: 'arn:aws:iam::111122223333:user/example-responder'}
-          cloud: {provider: aws, region: ap-southeast-2, account: {id: '444455556666'}}
-          source: {ip: null}
+      - event: {kind: event, category: [web], type: [access], action:
+            object-read, outcome: success, provider: s3.amazonaws.com, id:
+            read-1}
+        user: {id: arn:aws:iam::111122223333:user/example-responder}
+        cloud: {provider: aws, region: ap-southeast-2, account: {id: '444455556666'}}
+        source: {ip: null}
+      - event: {kind: event, category: [web], type: [access], action:
+            object-read, outcome: success, provider: s3.amazonaws.com, id:
+            read-ip}
+        user: {id: arn:aws:iam::111122223333:user/example-responder}
+        cloud: {provider: aws, region: ap-southeast-2, account: {id: '444455556666'}}
+        source: {ip: 192.0.2.10}
 test_each_malformed_supported_field_is_rejected:
   model: cloudtrail.source_staging
   inputs:
@@ -156,3 +196,196 @@ test_semantic_oracle_rejects_wrong_action_actor_time_and_outcome:
     query:
       rows:
         - {assertion_failures: 4, capability_failures: 0}
+
+test_optional_identity_is_scoped_and_payload_variants_are_distinct:
+  model: cloudtrail.source_staging
+  inputs:
+    batz_input.parsed:
+      columns:
+        binding_id: VARCHAR
+        observation_id: VARCHAR
+        payload: VARCHAR
+      rows:
+      - binding_id: a
+        observation_id: scoped
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":"event"}'
+      - binding_id: a
+        observation_id: repeat
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":"event"}'
+      - binding_id: a
+        observation_id: changed
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":"event","extra":"changed"}'
+      - binding_id: b
+        observation_id: other-binding
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":"event"}'
+      - binding_id: a
+        observation_id: anonymous
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":null}'
+      - binding_id: a
+        observation_id: malformed-id
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":"account","eventID":42}'
+      - binding_id: a
+        observation_id: unscoped
+        payload: '{"eventSource":"s3.amazonaws.com","eventName":"GetObject","eventType":"AwsApiCall","userIdentity":{"type":"IAMUser"},"recipientAccountId":{"invalid":true},"eventID":"event"}'
+  outputs:
+    query:
+      partial: true
+      rows:
+      - observation_id: scoped
+        mapping_status: mapped
+        batz:
+          source_event_id: scoped
+          logical_event_id:
+            a52b7727ff0c7431db46c8797712c9b8a5eade01e8b6447c8c5fe2ff7507d0d8
+          norm_event_variant_id:
+            1d45d93986f9c288e536f94f76a6f6c7e4250c92868fdd4bd7cdd1ab5000f8a7
+      - observation_id: repeat
+        mapping_status: mapped
+        batz:
+          source_event_id: repeat
+          logical_event_id:
+            a52b7727ff0c7431db46c8797712c9b8a5eade01e8b6447c8c5fe2ff7507d0d8
+          norm_event_variant_id:
+            1d45d93986f9c288e536f94f76a6f6c7e4250c92868fdd4bd7cdd1ab5000f8a7
+      - observation_id: changed
+        mapping_status: mapped
+        batz:
+          source_event_id: changed
+          logical_event_id:
+            a52b7727ff0c7431db46c8797712c9b8a5eade01e8b6447c8c5fe2ff7507d0d8
+          norm_event_variant_id:
+            4e59ad00c80be0d4ab7b1b7ad4989871b447398052579b70c86e25f8f2bc8745
+      - observation_id: other-binding
+        mapping_status: mapped
+        batz:
+          source_event_id: other-binding
+          logical_event_id:
+            3134dac362db83b1f59dc10e2ca9137912f7c382913c5aba9ce1ebce9331c521
+          norm_event_variant_id:
+            7c8eb8b4be90da3f428b0dc0f2d58644ab31747c3457c7fdc93d00598aaf67e3
+      - observation_id: anonymous
+        mapping_status: mapped
+        batz:
+          source_event_id: anonymous
+          logical_event_id:
+          norm_event_variant_id:
+            bf47b009cefcf2d50bb4643e96137c81af29b02ec73b53d64a68f6d500c88480
+      - observation_id: malformed-id
+        mapping_status: mapped
+        batz:
+          source_event_id: malformed-id
+          logical_event_id:
+          norm_event_variant_id:
+            24b6184e6b9370fed7bdbaa0f36ab404e78d2fbedae83f962fb3af32d51016a7
+      - observation_id: unscoped
+        mapping_status: mapped
+        batz:
+          source_event_id: unscoped
+          logical_event_id:
+          norm_event_variant_id:
+            d1d7231d1da614cd9c3cbc10525778b37d10b314aaa68a4a496ed7221f7d07a1
+test_duplicate_combination_retains_origins_and_flags_all_conflicting_variants:
+  model: cloudtrail.api_activity
+  inputs:
+    cloudtrail.source_staging:
+      columns:
+        observation_id: VARCHAR
+        mapping_status: VARCHAR
+        payload: VARCHAR
+        caller: VARCHAR
+        occurrence_time: TIMESTAMP_NS
+        original_time: VARCHAR
+        original_offset: VARCHAR
+        fraction_digits: INTEGER
+        parsed_revision: VARCHAR
+        parsed_file: VARCHAR
+        parsed_row: BIGINT
+        batz: STRUCT(source_event_id VARCHAR, logical_event_id VARCHAR, norm_event_variant_id VARCHAR)
+      query: |
+        SELECT id AS observation_id, 'mapped' AS mapping_status, payload,
+          NULL::VARCHAR AS caller, NULL::TIMESTAMP_NS AS occurrence_time,
+          NULL::VARCHAR AS original_time, NULL::VARCHAR AS original_offset,
+          NULL::INTEGER AS fraction_digits, 'revision' AS parsed_revision,
+          'file' AS parsed_file, ordinal::BIGINT AS parsed_row,
+          {'source_event_id':id,'logical_event_id':logical_id,
+            'norm_event_variant_id':variant} AS batz
+        FROM (VALUES
+          ('a','logical','same','{"eventID":"event"}',0),
+          ('b','logical','same','{"eventID":"event"}',1),
+          ('c','logical','changed','{"eventID":"event","extra":"changed"}',2),
+          ('d','logical','changed','{"eventID":"event","extra":"changed"}',3)
+        ) t(id,logical_id,variant,payload,ordinal)
+    batz_input.build_context:
+      rows:
+        - {input_revision: revision, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
+  outputs:
+    query:
+      partial: true
+      query: |
+        SELECT {'source_event_id':source_id, 'logical_event_id':logical_id,
+          'norm_event_variant_id':variant, 'conflict':conflict,
+          'actor_account_id':NULL::VARCHAR,
+          'target':{'bucket':NULL::VARCHAR,'key':NULL::VARCHAR},
+          'time':{'original':NULL::VARCHAR,'fraction_digits':NULL::INTEGER,
+                  'offset':NULL::VARCHAR,'uncertainty':'unspecified'},
+          'profile':'batz-investigation/v0alpha1', 'origins':origins,
+          'source_payload':payload, 'input_revision':'revision','input_digest':'digest',
+          'attempt_id':'attempt','evaluation_nonce':'nonce'} AS batz
+        FROM (VALUES
+          (NULL::VARCHAR,'logical','same',true,[{'source_event_id':'a','parsed_revision':'revision','file':'file','row':0::BIGINT},{'source_event_id':'b','parsed_revision':'revision','file':'file','row':1::BIGINT}],'{"eventID":"event"}'),
+          (NULL::VARCHAR,'logical','changed',true,[{'source_event_id':'c','parsed_revision':'revision','file':'file','row':2::BIGINT},{'source_event_id':'d','parsed_revision':'revision','file':'file','row':3::BIGINT}],'{"eventID":"event","extra":"changed"}')
+        ) t(source_id,logical_id,variant,conflict,origins,payload)
+
+test_unidentified_observations_keep_separate_origins_without_conflicts:
+  model: cloudtrail.api_activity
+  inputs:
+    cloudtrail.source_staging:
+      columns:
+        observation_id: VARCHAR
+        mapping_status: VARCHAR
+        payload: VARCHAR
+        caller: VARCHAR
+        occurrence_time: TIMESTAMP_NS
+        original_time: VARCHAR
+        original_offset: VARCHAR
+        fraction_digits: INTEGER
+        parsed_revision: VARCHAR
+        parsed_file: VARCHAR
+        parsed_row: BIGINT
+        batz: STRUCT(source_event_id VARCHAR, logical_event_id VARCHAR, norm_event_variant_id VARCHAR)
+      query: |
+        SELECT id AS observation_id, 'mapped' AS mapping_status, payload,
+          NULL::VARCHAR AS caller,
+          make_timestamp_ns(1792929600000000000 + CASE WHEN id='u1' THEN 1 ELSE 2 END) AS occurrence_time,
+          CASE WHEN id='u1' THEN '2026-10-25T12:00:00.000000001Z' ELSE '2026-10-25T22:00:00.000000002+10:00' END AS original_time,
+          CASE WHEN id='u1' THEN 'Z' ELSE '+10:00' END AS original_offset,
+          9::INTEGER AS fraction_digits, 'revision' AS parsed_revision,
+          'file' AS parsed_file, ordinal::BIGINT AS parsed_row,
+          {'source_event_id':id,'logical_event_id':logical_id,
+            'norm_event_variant_id':variant} AS batz
+        FROM (VALUES
+          ('u1',NULL::VARCHAR,'u1','{"extra":"same-unidentified"}',0),
+          ('u2',NULL::VARCHAR,'u2','{"extra":"same-unidentified"}',1)
+        ) t(id,logical_id,variant,payload,ordinal)
+    batz_input.build_context:
+      rows:
+        - {input_revision: revision, input_digest: digest, attempt_id: attempt, evaluation_nonce: nonce}
+  outputs:
+    query:
+      partial: true
+      query: |
+        SELECT make_timestamp_ns(1792929600000000000 + CASE WHEN source_id='u1' THEN 1 ELSE 2 END) AS "@timestamp",
+          {'source_event_id':source_id, 'logical_event_id':logical_id,
+          'norm_event_variant_id':variant, 'conflict':conflict,
+          'actor_account_id':NULL::VARCHAR,
+          'target':{'bucket':NULL::VARCHAR,'key':NULL::VARCHAR},
+          'time':{'original':CASE WHEN source_id='u1' THEN '2026-10-25T12:00:00.000000001Z' ELSE '2026-10-25T22:00:00.000000002+10:00' END,
+                  'fraction_digits':9::INTEGER,
+                  'offset':CASE WHEN source_id='u1' THEN 'Z' ELSE '+10:00' END,'uncertainty':'unspecified'},
+          'profile':'batz-investigation/v0alpha1', 'origins':origins,
+          'source_payload':payload, 'input_revision':'revision','input_digest':'digest',
+          'attempt_id':'attempt','evaluation_nonce':'nonce'} AS batz
+        FROM (VALUES
+          ('u1',NULL::VARCHAR,'u1',false,[{'source_event_id':'u1','parsed_revision':'revision','file':'file','row':0::BIGINT}],'{"extra":"same-unidentified"}'),
+          ('u2',NULL::VARCHAR,'u2',false,[{'source_event_id':'u2','parsed_revision':'revision','file':'file','row':1::BIGINT}],'{"extra":"same-unidentified"}')
+        ) t(source_id,logical_id,variant,conflict,origins,payload)

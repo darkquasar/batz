@@ -1,5 +1,16 @@
 # Repository working instructions
 
+## Pipeline contribution contracts
+
+Use the [contributor guide](contributing.md) and [native contract criteria](docs/usage/pipeline-e2e.md).
+Routine pipelines supply source/config/fixtures, native SQL/YAML tests and actual
+adapter/native contract proof. No per-pipeline application E2E, Go test/tag or
+shared lifecycle matrix is required. Shared app tests use only invented internal
+content. Private pipeline SQL selects native consumers/contracts plus fast checks;
+shared SQL selects app only when the synthetic journey consumes it. Native test-only
+edits select native tests, including synthetic tests. Core/runtime/collector/global
+inputs select shared coverage. Optional event identity must not block valid input.
+
 ## Proportionate verification
 
 Follow [ADR-001: Keep the test surface small and compositional](docs/adr/0001-test-at-the-cheapest-sufficient-layer.md).

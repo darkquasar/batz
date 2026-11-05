@@ -57,7 +57,7 @@ class AffectedJobs(unittest.TestCase):
         self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 2 AS id;')
         jobs = self.selected()
         self.assertEqual(jobs['models'], ['pipeline-a'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a'])
+        self.assertNotIn('e2e', jobs)
         self.assertTrue(jobs['fast'])
         self.assertFalse(jobs['app'])
 
@@ -77,7 +77,8 @@ class AffectedJobs(unittest.TestCase):
         jobs = self.selected()
         self.assertEqual(jobs['models'], ['pipeline-a'])
         self.assertEqual(jobs['adapters'], [])
-        self.assertEqual(jobs['e2e'], [])
+        self.assertFalse(jobs['fast'])
+        self.assertNotIn('e2e', jobs)
 
     def test_shared_app_selects_critical_runtime_without_catalog_e2e(self):
         self.write('internal/app/app.go', 'package app\\n')
@@ -85,7 +86,7 @@ class AffectedJobs(unittest.TestCase):
         self.assertTrue(jobs['fast'])
         self.assertTrue(jobs['app'])
         self.assertEqual(jobs['models'], [])
-        self.assertEqual(jobs['e2e'], [])
+        self.assertNotIn('e2e', jobs)
 
     def test_docs_only_changes_start_no_native_lane(self):
         self.write('docs/guide.md', 'Guide')
@@ -94,7 +95,7 @@ class AffectedJobs(unittest.TestCase):
         self.assertFalse(jobs['fast'])
         self.assertFalse(jobs['app'])
         self.assertEqual(jobs['models'], [])
-        self.assertEqual(jobs['e2e'], [])
+        self.assertNotIn('e2e', jobs)
 
     def test_unknown_or_selector_changes_broaden_contracts_not_catalog_e2e(self):
         self.write('ci/select.py', '# changed selection')
@@ -102,11 +103,11 @@ class AffectedJobs(unittest.TestCase):
         self.assertTrue(jobs['fast'])
         self.assertTrue(jobs['app'])
         self.assertEqual(jobs['models'], ['pipeline-a', 'pipeline-b'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a'])
+        self.assertNotIn('e2e', jobs)
 
     def test_rename_keeps_native_identity_and_owner(self):
         self.git('mv', 'models/pipeline-a/events.sql', 'models/pipeline-a/renamed.sql')
-        self.assertEqual(self.selected()['e2e'], ['pipeline-a'])
+        self.assertEqual(self.selected()['models'], ['pipeline-a'])
 
     def test_deleted_required_root_fails_head_discovery(self):
         (self.root / 'models/pipeline-a/events.sql').unlink()
@@ -119,7 +120,7 @@ class AffectedJobs(unittest.TestCase):
         self.base = self.commit()
         self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 2 AS id;')
         (self.root/'models/shared/s.sql').unlink()
-        self.assertEqual(self.selected()['e2e'], ['pipeline-a'])
+        self.assertEqual(self.selected()['models'], ['pipeline-a'])
 
     def test_removed_pipeline_broadens_remaining_contracts(self):
         (self.root / 'pipelines/pipeline-a.yaml').unlink()
@@ -133,7 +134,9 @@ class AffectedJobs(unittest.TestCase):
         self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT * FROM common.s;')
         self.base = self.commit()
         self.write('models/shared/s.sql', 'MODEL (name common.s, kind FULL); SELECT 2 AS id;')
-        self.assertEqual(self.selected()['models'], ['pipeline-a'])
+        jobs = self.selected()
+        self.assertEqual(jobs['models'], ['pipeline-a'])
+        self.assertFalse(jobs['app'])
 
     def test_independent_pipeline_addition_needs_no_registry(self):
         value = json.loads((self.root/'pipelines/pipeline-a.yaml').read_text())
@@ -146,9 +149,11 @@ class AffectedJobs(unittest.TestCase):
             self.write('models/new-source/'+name+'.sql',f'MODEL (name unrelated_schema.{name}, kind FULL); SELECT 1 AS id;')
         self.write('tests/new-source/test_events.yaml',json.dumps({'new_test':{'model':'unrelated_schema.events','outputs':{'query':{'rows':[{'id':1}]}}}}))
         jobs = self.selected()
+        self.assertTrue(jobs['fast'])
         self.assertEqual(jobs['models'],['new-source'])
         self.assertEqual(jobs['adapters'],['new-source'])
-        self.assertEqual(jobs['e2e'],['new-source'])
+        self.assertNotIn('e2e', jobs)
+        self.assertFalse(jobs['app'])
 
     def test_old_layout_base_broadens_with_reason(self):
         (self.root/'config.yaml').unlink()
@@ -166,7 +171,7 @@ class AffectedJobs(unittest.TestCase):
         head = self.commit()
         jobs = selection.select_changes(self.root, target, head)
         self.assertEqual(jobs['models'], ['pipeline-a'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a'])
+        self.assertNotIn('e2e', jobs)
 
     def test_declared_source_reference_is_not_docs_by_extension(self):
         path = self.root / 'pipelines/pipeline-a.yaml'
@@ -191,10 +196,17 @@ class AffectedJobs(unittest.TestCase):
         self.write('internal/app/testdata/probe/undeclared.jsonl', '{}\n')
         jobs = self.selected()
         self.assertEqual(jobs['models'], ['probe'])
-        self.assertEqual(jobs['e2e'], ['probe'])
+        self.assertNotIn('e2e', jobs)
         self.assertTrue(jobs['app'])
+        self.base = self.git('rev-parse', 'HEAD')
+        self.write('internal/app/testdata/probe/README.md', 'Fixture notes only')
+        jobs = self.selected()
+        self.assertTrue(jobs['docs'])
+        self.assertFalse(jobs['app'])
+        self.assertEqual(jobs['models'], [])
+        self.assertNotIn('e2e', jobs)
 
-    def test_bridge_uses_fixed_production_and_testdata_probes(self):
+    def test_bridge_selects_native_contracts_and_shared_fixture_coverage(self):
         value = json.loads((self.root / 'pipelines/pipeline-a.yaml').read_text())
         value['name'] = 'probe'
         for model in ('staging','evidence','checks','events'):
@@ -207,8 +219,88 @@ class AffectedJobs(unittest.TestCase):
         self.write('internal/app/explain.go', '// shared preview orchestration')
         jobs = self.selected()
         self.assertEqual(jobs['models'], ['pipeline-a', 'pipeline-b', 'probe'])
-        self.assertEqual(jobs['e2e'], ['pipeline-a', 'probe'])
+        self.assertNotIn('e2e', jobs)
 
+    def test_shared_native_helper_selects_shared_coverage(self):
+        self.write('internal/app/native_test.go', '// shared reader and fixture helpers')
+        jobs = self.selected()
+        self.assertTrue(jobs['app'])
+        self.assertNotIn('e2e', jobs)
+
+    def test_fixture_model_and_native_test_select_shared_not_probe_e2e(self):
+        value = json.loads((self.root / 'pipelines/pipeline-a.yaml').read_text())
+        value['name'] = 'probe'
+        for model in ('staging', 'evidence', 'checks', 'events'):
+            self.write('models/probe/'+model+'.sql', f'MODEL (name probe.{model}, kind FULL); SELECT 1 AS id;')
+        for key in ('staging', 'evidence', 'checks'):
+            value['normalization'][key] = 'probe.'+key
+        value['routes']['local_raw']['output']['normalized']['models']['events'] = 'probe.events'
+        self.write('internal/app/testdata/probe/pipeline.yaml', json.dumps(value))
+        self.base = self.commit()
+        self.write('models/probe/events.sql', 'MODEL (name probe.events, kind FULL); SELECT 2 AS id;')
+        jobs = self.selected()
+        self.assertTrue(jobs['app'])
+        self.assertEqual(jobs['adapters'], ['probe'])
+        self.assertNotIn('e2e', jobs)
+        self.base = self.git('rev-parse', 'HEAD')
+        self.write('tests/probe/test_events.yaml', json.dumps({'fixture': {'model': 'probe.events', 'outputs': {'query': {'rows': [{'id': 2}]}}}}))
+        jobs = self.selected()
+        self.assertFalse(jobs['app'])
+        self.assertEqual(jobs['adapters'], [])
+        self.assertFalse(jobs['fast'])
+        self.assertEqual(jobs['models'], ['probe'])
+        self.assertNotIn('e2e', jobs)
+
+    def test_core_retry_and_moved_replay_select_shared_coverage(self):
+        for path in ('internal/run/recovery.go', 'internal/app/app_replay_test.go'):
+            self.base = self.git('rev-parse', 'HEAD')
+            self.write(path, '// shared behavior')
+            jobs = self.selected()
+            self.assertTrue(jobs['app'])
+            self.assertNotIn('e2e', jobs)
+
+    def test_former_vendor_test_path_is_now_shared_code(self):
+        self.write('internal/app/pipeline_a_e2e_test.go', '// source wiring')
+        jobs = self.selected()
+        self.assertTrue(jobs['app'])
+        self.assertNotIn('e2e', jobs)
+
+
+    def test_shared_sql_consumed_by_synthetic_journey_selects_app_on_removed_edge(self):
+        value = json.loads((self.root/'pipelines/pipeline-a.yaml').read_text())
+        self.git('mv', 'pipelines/pipeline-a.yaml', 'internal-probe.yaml')
+        self.write('internal/app/testdata/probe/pipeline.yaml', json.dumps(value))
+        (self.root/'internal-probe.yaml').unlink()
+        self.write('models/shared/s.sql', 'MODEL (name common.s, kind FULL); SELECT 1 AS id;')
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT * FROM common.s;')
+        self.base = self.commit()
+        self.write('models/pipeline-a/events.sql', 'MODEL (name pipeline_a.events, kind FULL); SELECT 2 AS id;')
+        (self.root/'models/shared/s.sql').unlink()
+        jobs = self.selected()
+        self.assertTrue(jobs['app'])
+        self.assertEqual(jobs['models'], ['pipeline-a'])
+        self.assertTrue(any('shared runtime model impact' in r for r in jobs['reasons']))
+
+    def test_native_test_and_source_edit_still_select_fast(self):
+        self.write('tests/pipeline-a/test_events.yaml', json.dumps({'events': {'model':'pipeline_a.events','outputs':{'query':{'rows':[{'id':1}]}}}}))
+        self.write('collector/pipeline-a.yaml', '{"updated":true}')
+        jobs = self.selected()
+        self.assertTrue(jobs['fast'])
+        self.assertEqual(jobs['adapters'], ['pipeline-a'])
+
+    def test_core_deletion_selects_shared_app(self):
+        self.write('internal/run/helper.go', '// original')
+        self.base = self.commit()
+        (self.root/'internal/run/helper.go').unlink()
+        self.assertTrue(self.selected()['app'])
+
+    def test_global_config_selects_shared_app_and_all_contracts(self):
+        self.write('config.yaml', (self.root/'config.yaml').read_text()+'\n')
+        jobs = self.selected()
+        self.assertTrue(jobs['app'])
+        self.assertEqual(jobs['models'], ['pipeline-a', 'pipeline-b'])
+        self.assertEqual(jobs['adapters'], ['pipeline-a', 'pipeline-b'])
+        self.assertNotIn('e2e', jobs)
 
 if __name__ == '__main__':
     unittest.main()

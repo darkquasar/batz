@@ -15,11 +15,11 @@ func TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "pipelines"), 0700); err != nil {
 		t.Fatal(err)
 	}
-	source, err := os.ReadFile("../../pipelines/aws-cloudtrail/pipeline.yaml")
+	source, err := os.ReadFile("../../internal/app/testdata/synthetic/pipeline.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition := filepath.Join(root, "pipelines", "aws-cloudtrail.yaml")
+	definition := filepath.Join(root, "pipelines", "synthetic-jsonl.yaml")
 	if err = os.WriteFile(definition, source, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime(t *testing.T) {
 	if err = json.Unmarshal(out.Bytes(), &report); err != nil {
 		t.Fatal(err)
 	}
-	if report.Level != 1 || len(report.Routes) != 1 || report.Routes[0].Name != "local_raw" || report.Routes[0].Models["api_activity"] != "cloudtrail.api_activity" {
+	if report.Level != 1 || len(report.Routes) != 1 || report.Routes[0].Name != "local_raw" || report.Routes[0].Models["findings"] != "probe.findings" {
 		t.Fatalf("declarations missing: %+v", report)
 	}
 	if len(report.Diagnostics) == 0 {

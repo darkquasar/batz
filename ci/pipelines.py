@@ -1,5 +1,6 @@
 """Manifest discovery and path ownership; no SQL graph or pipeline registry."""
 from pathlib import Path, PurePosixPath
+import json
 import posixpath
 import re
 import subprocess
@@ -55,5 +56,16 @@ def reference(manifest, value):
     return path
 
 
-def tag(identity):
-    return 'batz_' + identity.replace('-', '_')
+def validate_manifest(value, manifest='pipeline.yaml'):
+    """Use the same schema/vocabulary and supported version as loadPipeline."""
+    from jsonschema import Draft7Validator, ValidationError
+    schema = json.loads((ROOT/'schemas/v0alpha1/source-pipeline.schema.json').read_text())
+    try:
+        Draft7Validator(schema).validate(value)
+    except ValidationError as error:
+        raise ValueError('invalid pipeline manifest: '+error.message) from error
+    if value['version'] != 1:
+        raise ValueError('unsupported pipeline contract version')
+    if reference(manifest, value['normalization']['project']) != '.':
+        raise ValueError('unsupported native project layout')
+    return value
