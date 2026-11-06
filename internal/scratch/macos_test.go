@@ -55,7 +55,13 @@ if sys.platform == 'linux':
   except PermissionError:pass
   else:raise RuntimeError('unrelated kernel file readable: ' + path)
 print('SQL denied')`
-	program, args, err := scratch.Command(profile, python, "-I", "-B", "-c", script, forbidden)
+	// Exercise a real script file, as discovery/model/inspection do. CPython
+	// uses a descriptor close-on-exec ioctl when opening this entry point.
+	scriptPath := filepath.Join(private, "native-probe.py")
+	if err = os.WriteFile(scriptPath, []byte(script), 0600); err != nil {
+		t.Fatal(err)
+	}
+	program, args, err := scratch.Command(profile, python, "-I", "-B", scriptPath, forbidden)
 	if err != nil {
 		t.Fatal(err)
 	}

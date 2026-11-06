@@ -38,3 +38,12 @@ RUN mise trust mise.toml && mise install \
     && mise install \
     && runtime/.local/venv/bin/python -I -B ci/setup.py --check
 WORKDIR /opt/batz
+RUN GOMODCACHE=/opt/batz/runtime/.local/gomod GOCACHE=/opt/batz/runtime/.local/gocache \
+      runtime/.local/venv/bin/python -I -B packaging/build.py archive \
+        --root /opt/batz --output /tmp/batz-upgrade-fixture \
+        --version v0.1.0-rc.2.local-upgrade --source-sha "$SOURCE_SHA" \
+        --target linux/amd64 --go /opt/batz/runtime/.local/go/bin/go --development \
+    && runtime/.local/venv/bin/python -I -B ci/verify-upgrade.py \
+        --first "/opt/Batz installations/candidate" \
+        --archive /tmp/batz-upgrade-fixture/batz-v0.1.0-rc.2.local-upgrade-linux-amd64.tar.gz \
+        --mise /usr/local/bin/mise

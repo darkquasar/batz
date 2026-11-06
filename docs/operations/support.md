@@ -40,6 +40,13 @@ sample, ordinary reader and separate-root upgrade preservation. Reuse compatible
 assertions from that walkthrough; do not create a platform-pair or per-pipeline
 application test matrix.
 
+Preparation runs `ci/verify-upgrade.py` on each native target. It compares the
+official candidate with one distinct development-only build from the same source,
+checks the specific failed-lock setup with hostile environment selection, then
+verifies separate successful environments and unchanged prior evidence. The
+development fixture remains outside the frozen release assets; offline
+qualification performs no installation.
+
 GitHub-hosted macOS arm64 may prepare verified pinned dependencies in each fresh
 VM before offline tests. Linux CI requires an already prepared, digest-pinned tool
 and fixture image. Ordinary tests never install/sync dependencies or fetch baked

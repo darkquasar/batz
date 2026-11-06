@@ -53,3 +53,43 @@ with open(sys.argv[1]+'/unmeasured.bin','wb') as f:
 	}
 	t.Logf("sibling writer stopped at %d bytes; observed %d bytes", info.Size(), usage.ScratchPeakBytes)
 }
+
+func TestAppPrivateInspectionBudgetIncludesWritableSiblingPaths(t *testing.T) {
+	runtime := os.Getenv("BATZ_TEST_RUNTIME")
+	if runtime == "" {
+		t.Fatal("native lane requires ci/test app")
+	}
+	private, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	stage := filepath.Join(private, "discovery")
+	if err = os.Mkdir(stage, 0700); err != nil {
+		t.Fatal(err)
+	}
+	profile, err := scratch.Profile(private, []string{filepath.Join(runtime, "python"), filepath.Join(runtime, "venv")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A sparse sibling exceeds the finite budget without writing a GiB. The
+	// inspector's nested working directory must not hide this writable path.
+	sibling, err := os.Create(filepath.Join(private, "sibling.bin"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = sibling.Truncate(Limits().ScratchBytes + 1)
+	_ = sibling.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(stage, "inspect.py")
+	if err = os.WriteFile(script, []byte("print('inspection ran')\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	usage, err := InspectPrivate(ctx, stage, private, profile, filepath.Join(runtime, "venv/bin/python"), script, filepath.Join(stage, "request.json"))
+	if err == nil || !strings.Contains(err.Error(), "scratch-limit") || usage.ScratchPeakBytes <= Limits().ScratchBytes {
+		t.Fatalf("private inspection ignored writable sibling: usage=%+v err=%v", usage, err)
+	}
+}

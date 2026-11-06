@@ -117,7 +117,14 @@ def confine(policy):
     instructions = [(0x20, 0, 0, 4), (0x15, 1, 0, 0xC000003E),
                     (0x06, 0, 0, 0x80000000), (0x20, 0, 0, 0),
                     (0x35, 0, 1, 0x40000000), (0x06, 0, 0, 0x80000000)]
-    denied = [16, *range(41, 56), 101, 288, 299, 307, 310, 311, 438,
+    # CPython's script fopen uses FIOCLEX to set this process's descriptor
+    # close-on-exec bit. Admit only that descriptor operation; filesystem
+    # metadata ioctls remain denied even on read-only admitted descriptors.
+    instructions.extend([(0x15, 0, 4, 16), (0x20, 0, 0, 24),
+                         (0x15, 1, 0, 0x5451),
+                         (0x06, 0, 0, 0x50000 | errno.EPERM),
+                         (0x06, 0, 0, 0x7FFF0000)])
+    denied = [*range(41, 56), 101, 288, 299, 307, 310, 311, 438,
               425, 426, 427,
               # Landlock does not mediate metadata changes. Deny these globally.
               90, 91, 92, 93, 94, 132, 235, 260, 261, 268, 280, 452,
