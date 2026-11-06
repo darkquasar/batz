@@ -5,7 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, nullcontext
 import threading
 import fcntl
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -35,11 +34,17 @@ def command(argv, kind='test'):
 
 
 def environment():
-    local = Path(os.environ.get('BATZ_TOOLCHAIN_ROOT', ROOT / 'runtime/.local'))
-    if (local / 'go/bin/go').is_file():
-        os.environ['PATH'] = str(local / 'go/bin') + os.pathsep + os.environ.get('PATH', '')
-    os.environ.update(GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off', GOMAXPROCS='2',
-                      PYTHONDONTWRITEBYTECODE='1')
+    # Caller build controls must not redirect a verified compiler or its tools.
+    for key in list(os.environ):
+        if key.startswith('GO') and key not in ('GOCACHE', 'GOMODCACHE', 'GOPATH'):
+            os.environ.pop(key)
+    local = Path(ROOT / 'runtime/.local')
+    if not (local / 'go/bin/go').is_file():
+        raise FileNotFoundError('missing pinned Go toolchain; run mise install')
+    os.environ['PATH'] = str(local / 'go/bin') + os.pathsep + os.environ.get('PATH', '')
+    os.environ.update(GOTOOLCHAIN='local', GOENV='off', GOWORK='off', GOFLAGS='',
+                      GOEXPERIMENT='', GOCACHEPROG='', CGO_ENABLED='0',
+                      GOPROXY='off', GOSUMDB='off', GOMAXPROCS='2', PYTHONDONTWRITEBYTECODE='1')
     for variable, directory in [('GOCACHE', 'gocache'), ('GOPATH', 'gopath'), ('GOMODCACHE', 'gomod')]:
         if (local / directory).is_dir():
             os.environ.setdefault(variable, str(local / directory))
@@ -58,27 +63,22 @@ def environment():
 def prepare_native(lock):
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise ValueError('native lanes require the qualified macOS ARM64 host')
-    local = Path(os.environ.get('BATZ_TOOLCHAIN_ROOT', ROOT / 'runtime/.local')).resolve()
-    python = local / 'venv/bin/python'
-    installed = lock['installed_binaries']['darwin/arm64']
-    if hashlib.sha256(python.read_bytes()).hexdigest() != installed['python']['sha256']:
-        raise ValueError('pinned Python binary checksum mismatch')
-    # Each invocation owns its build and receipt. Installed assets and the
-    # reviewed production lock are never rewritten by test execution.
-    with tempfile.TemporaryDirectory(prefix='batz-test-runtime-') as scratch:
-        private = Path(scratch)
-        built = private / 'batz-collector'
-        command(['go', 'build', '-p', '1', '-o', built, './cmd/batz-collector'], kind='setup')
-        for name in ('venv', 'python'):
-            (private / name).symlink_to(local / name, target_is_directory=True)
-        receipt = json.loads(json.dumps(lock))
-        receipt['installed_binaries']['darwin/arm64']['collector']['sha256'] = hashlib.sha256(built.read_bytes()).hexdigest()
-        (private / 'dependencies.lock.json').write_text(json.dumps(receipt, indent=2) + '\n')
-        os.environ['BATZ_TEST_RUNTIME'] = str(private)
-        try:
-            yield
-        finally:
-            os.environ.pop('BATZ_TEST_RUNTIME', None)
+    # Setup already built the matching source collector. Offline lanes verify and
+    # reuse it; they never prepare/rewrite Python environments or compile it again.
+    from setup import verify_installation
+    verify_installation(ROOT)
+    local = ROOT / 'runtime/.local'
+    data = (ROOT / 'runtime/dependencies.lock.json').read_bytes()
+    local_lock = local / 'dependencies.lock.json'
+    if not local_lock.exists() or local_lock.read_bytes() != data:
+        temporary = local / ('.dependencies.' + str(os.getpid()) + '.partial')
+        temporary.write_bytes(data)
+        temporary.replace(local_lock)
+    os.environ['BATZ_TEST_RUNTIME'] = str(local)
+    try:
+        yield
+    finally:
+        os.environ.pop('BATZ_TEST_RUNTIME', None)
 
 
 @contextmanager
@@ -152,8 +152,9 @@ def fast(catalog):
     run_jobs([
         (0, lambda: command(['go', 'test', './...', '-p', '1', '-count=1'])),
         (0, lambda: command(['go', 'vet', '-p', '1', '-tags', tags, './...'])),
-        (0, lambda: command([sys.executable, '-I', '-m', 'unittest', 'discover', '-s', 'runtime/sqlmesh', '-p', 'test_inspect_preview.py'])),
-        (0, lambda: command([sys.executable, '-I', '-m', 'unittest', 'discover', '-s', 'ci', '-p', 'test_*.py'])),
+        (0, lambda: command([sys.executable, '-I', '-B', '-m', 'unittest', 'discover', '-s', 'runtime/sqlmesh', '-p', 'test_inspect_preview.py'])),
+        (0, lambda: command([sys.executable, '-I', '-B', '-m', 'unittest', 'discover', '-s', 'ci', '-p', 'test_*.py'])),
+        (0, lambda: command([sys.executable, '-I', '-B', '-m', 'unittest', 'discover', '-s', 'packaging', '-p', 'test_*.py'])),
         (0, whitespace),
     ])
 
@@ -161,7 +162,7 @@ def fast(catalog):
 def app():
     def python_contracts():
         # One interpreter avoids repeated SQLMesh imports; each fixture owns state.
-        command([sys.executable, '-I', '-c',
+        command([sys.executable, '-I', '-B', '-c',
                  "import sys,unittest,os,tempfile; scratch=tempfile.TemporaryDirectory(prefix='batz-contracts-'); "
                  "os.environ['SQLMESH_HOME']=scratch.name; os.environ['SQLMESH__DISABLE_ANONYMIZED_ANALYTICS']='true'; sys.path[:0]=['runtime/sqlmesh','ci']; "
                  "suite=unittest.TestLoader().loadTestsFromNames(['test_runner','test_scope','native_select_test']); "
@@ -174,7 +175,7 @@ def app():
 
 
 def models(selected, catalog, mode='both'):
-    command([sys.executable, '-I', ROOT/'runtime/sqlmesh/test_models.py', '--mode', mode,
+    command([sys.executable, '-I', '-B', ROOT/'runtime/sqlmesh/test_models.py', '--mode', mode,
              *(['--all-tests'] if set(selected) == set(catalog) else []),
              *[ROOT/catalog[identity]['path'] for identity in sorted(set(selected))]])
 

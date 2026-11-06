@@ -55,7 +55,7 @@ except PermissionError:pass
 else:raise RuntimeError('network permitted')
 print('qualified')
 `
-	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, python, "-I", "-c", script, root, forbidden)
+	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, python, "-I", "-B", "-c", script, root, forbidden)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + root, "TMPDIR=" + root, "PYTHONDONTWRITEBYTECODE=1"}
 	output, err := cmd.CombinedOutput()

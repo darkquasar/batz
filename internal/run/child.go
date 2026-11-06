@@ -276,5 +276,5 @@ func InspectPrivate(ctx context.Context, root, profile, python, script, request 
 		return contracts.ResourceUsage{}, err
 	}
 	defer lease.Close()
-	return sandboxedChild(root, profile, ctx, lease, root, filepath.Join(root, "inspection.log"), childBudget{Limits().ScratchBytes, []string{root}}, nil, python, "-I", script, request)
+	return sandboxedChild(root, profile, ctx, lease, root, filepath.Join(root, "inspection.log"), childBudget{Limits().ScratchBytes, []string{root}}, nil, python, "-I", "-B", script, request)
 }

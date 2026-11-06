@@ -1,9 +1,10 @@
 #!/bin/sh
 set -eu
 root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-python="${BATZ_TOOLCHAIN_ROOT:-$root/runtime/.local}/venv/bin/python"
+python="$root/runtime/.local/venv/bin/python"
 if [ ! -x "$python" ]; then
     echo "missing pinned Python runtime: $python" >&2
     exit 3
 fi
-exec "$python" -I "$root/ci/test.py" "$@"
+"$python" -I -B "$root/ci/setup.py" --check
+exec "$python" -I -B "$root/ci/test.py" "$@"

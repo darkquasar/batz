@@ -91,7 +91,7 @@ func normalize(ctx context.Context, req Request, db *sql.DB, artifact string, le
 	}
 	report.Outcome = "normalization-failed"
 	modelCtx, modelCancel := context.WithTimeout(ctx, time.Duration(limits.ModelSeconds)*time.Second)
-	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
+	modelUsage, e := sandboxedChild(req.PrivateScratch, req.SandboxProfile, modelCtx, lease, attempt, filepath.Join(attempt, "model.log"), childBudget{limits.ScratchBytes, []string{attempt, output, filepath.Join(artifact, "parsed", string(inventory.revision))}}, nil, filepath.Join(req.Root, "runtime/.local/venv/bin/python"), "-I", "-B", filepath.Join(req.Root, "runtime/sqlmesh/runner.py"), requestPath)
 	report.Resources["model"] = modelUsage
 	modelCancel()
 	// SQLMesh state is disposable once its process group has stopped. Preserve

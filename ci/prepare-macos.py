@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare pinned dependencies in a fresh macOS runner; tests stay offline."""
+"""Hosted macOS bootstrap; normal trusted mise setup precedes offline checks."""
 import hashlib
 import json
 import os
@@ -28,40 +28,28 @@ def main():
     started = time.monotonic()
     if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
         raise ValueError('preparation requires native macOS ARM64')
-    local = Path(os.environ['BATZ_TOOLCHAIN_ROOT']).resolve()
-    cache = Path(os.environ['BATZ_DOWNLOAD_CACHE']).resolve()
-    # Never overwrite a developer's installed runtime or reuse an installed venv.
-    local.mkdir(parents=True, exist_ok=False)
+    local = ROOT / 'runtime/.local'
+    cache = Path(os.environ.get('BATZ_DOWNLOAD_CACHE', local / 'downloads')).resolve()
+    local.mkdir(parents=True, exist_ok=True)
     cache.mkdir(parents=True, exist_ok=True)
     lock = json.loads((ROOT / 'runtime/dependencies.lock.json').read_text())
-    for name, expected in lock['lock_files'].items():
-        if hashlib.sha256((ROOT / name).read_bytes()).hexdigest() != expected:
-            raise ValueError('lock file checksum mismatch: ' + name)
-    go = next(a for a in lock['go']['artifacts'] if '.darwin-arm64.' in a['filename'])
-    python = lock['python']['artifacts']['cpython-' + lock['python']['version'] + '-darwin-aarch64-none']
-    for name, artifact in [('go', go), ('python', python)]:
-        archive = cache / (artifact['sha256'] + '.tar.gz')
-        verified_download(artifact['url'], archive, artifact['sha256'])
-        subprocess.run(['tar', '-xzf', str(archive), '-C', str(local)], check=True)
-    py = local / 'python/bin/python3.12'
-    expected_python = lock['installed_binaries']['darwin/arm64']['python']['sha256']
-    if hashlib.sha256(py.read_bytes()).hexdigest() != expected_python:
-        raise ValueError('installed Python checksum mismatch')
-    subprocess.run([str(py), '-I', '-m', 'venv', str(local / 'venv')], check=True)
-    env = dict(os.environ, PIP_CACHE_DIR=str(cache / 'pip'),
-               PIP_DISABLE_PIP_VERSION_CHECK='1', PYTHONDONTWRITEBYTECODE='1',
-               GOTOOLCHAIN='local', GOPROXY='https://proxy.golang.org', GOSUMDB='sum.golang.org')
-    subprocess.run([str(local / 'venv/bin/python'), '-I', '-m', 'pip', 'install',
-                    '--require-hashes', '--only-binary=:all:',
-                    '-r', str(ROOT / 'runtime/requirements.lock'),
-                    '-r', str(ROOT / 'runtime/check-requirements.lock')], env=env, check=True)
-    subprocess.run([str(local / 'go/bin/go'), 'mod', 'download'], cwd=ROOT, env=env, check=True)
-    subprocess.run([str(local / 'go/bin/go'), 'mod', 'verify'], cwd=ROOT, env=env, check=True)
+    artifact = lock['mise']['artifacts']['darwin/arm64']
+    mise = cache / ('mise-' + lock['mise']['version'])
+    verified_download(artifact['url'], mise, artifact['sha256'])
+    mise.chmod(0o755)
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(('PYTHON', 'UV_', 'PIP_', 'CONDA_')) and key != 'VIRTUAL_ENV'}
+    env.update(MISE_DATA_DIR=str(local/'mise/data'), MISE_CACHE_DIR=str(cache/'mise'),
+               MISE_CONFIG_DIR=str(local/'mise/config'), MISE_STATE_DIR=str(local/'mise/state'),
+               MISE_BIN=str(mise), GOTOOLCHAIN='local', GOPROXY='https://proxy.golang.org',
+               GOSUMDB='sum.golang.org')
+    subprocess.run([str(mise), 'trust', str(ROOT / 'mise.toml')], cwd=ROOT, env=env, check=True)
+    subprocess.run([str(mise), 'install'], cwd=ROOT, env=env, check=True)
     print(json.dumps({'kind': 'dependency-setup', 'seconds': round(time.monotonic() - started, 3)}), flush=True)
 
 
 if __name__ == '__main__':
     try:
         main()
-    except (ValueError, OSError, KeyError, StopIteration, subprocess.CalledProcessError) as error:
+    except (ValueError, OSError, KeyError, subprocess.CalledProcessError) as error:
         sys.exit(str(error))

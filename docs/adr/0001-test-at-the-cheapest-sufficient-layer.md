@@ -81,9 +81,10 @@ application test suite.**
    per-test review ceremony or a separate coverage ledger.
 8. Measure real cost when it grows: fixed before/after workload, native starts,
    total work and wall time. Do not hide unchanged local work in a slow lane or
-   claim success from cached test results. Apply the owner-approved S3.1 budgets
-   in the spec/plan; report setup/cold builds separately. A miss requires concrete
-   simplification or an explicit owner decision, not silently dropping safety proof.
+   claim success from cached test results. Report setup/cold builds separately. The
+   owner removed hard test-time, reduction and tolerance targets on 2026-11-05: keep costs low, investigate meaningful
+   changes and simplify redundant work without a numerical pass/fail gate. Preserve
+   required correctness proof and finite execution/resource safety limits.
 
 Before adding a test, identify the new failure it catches, the cheapest sufficient
 layer, and whether an existing fixture/journey can carry the assertion. These are
