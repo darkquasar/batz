@@ -15,8 +15,8 @@ import (
 )
 
 func TestAppNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
-	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
-		t.Skip("native macOS qualification only")
+	if !((runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || (runtime.GOOS == "linux" && runtime.GOARCH == "amd64")) {
+		t.Skip("supported native targets only")
 	}
 	root := os.Getenv("BATZ_TEST_RUNTIME")
 	if root == "" {

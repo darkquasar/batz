@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1
 # Build preparation only. Ordinary Linux CI consumes the resulting image by digest.
 ARG PREPARED_IMAGE
-FROM --platform=linux/amd64 ${PREPARED_IMAGE}
+FROM --platform=linux/amd64 ${PREPARED_IMAGE} AS source
 ARG PREPARED_IMAGE
 ARG SOURCE_SHA
 ARG LINUX_ARCHIVE
 ARG LINUX_ARCHIVE_SHA256
 LABEL dev.batz.image-role="ci-tools-and-fixtures" \
+      org.opencontainers.image.source="https://github.com/darkquasar/batz" \
       dev.batz.fixture-source="${SOURCE_SHA}"
 USER root
 WORKDIR /opt/batz
@@ -21,6 +22,9 @@ RUN case "$PREPARED_IMAGE" in *@sha256:*) ;; *) echo 'digest-pinned prepared ima
 
 # Release qualification image: supplied dist is the already frozen candidate set.
 # This source image and the distributed runtime image have distinct roles/digests.
+FROM source AS qualification
+ARG LINUX_ARCHIVE
+ARG LINUX_ARCHIVE_SHA256
 COPY dist/ /opt/release-dist/
 RUN test "${#LINUX_ARCHIVE_SHA256}" = 64 \
     && echo "$LINUX_ARCHIVE_SHA256  /opt/release-dist/$LINUX_ARCHIVE" | sha256sum -c - \

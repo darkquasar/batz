@@ -1,0 +1,51 @@
+name: Prepare and qualify Linux
+
+on:
+  push:
+    branches: [feat/s9-version-releases]
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: prepare-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  linux:
+    if: github.repository == 'darkquasar/batz' && github.actor_id == '28435534'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Verify native host and log in to linked GHCR
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          test "$(uname -m)" = x86_64
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u darkquasar --password-stdin
+      - name: Build verified bootstrap and source images
+        run: |
+          docker build --file packaging/Dockerfile.tools --tag ghcr.io/darkquasar/batz-tools:sha-${{ github.sha }} .
+          docker push ghcr.io/darkquasar/batz-tools:sha-${{ github.sha }}
+          BOOTSTRAP=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz-tools:sha-${{ github.sha }})
+          docker build --file packaging/Dockerfile.ci --target source \
+            --build-arg PREPARED_IMAGE="$BOOTSTRAP" --build-arg SOURCE_SHA="${{ github.sha }}" \
+            --tag ghcr.io/darkquasar/batz-ci:sha-${{ github.sha }} .
+          docker push ghcr.io/darkquasar/batz-ci:sha-${{ github.sha }}
+          SOURCE_IMAGE=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz-ci:sha-${{ github.sha }})
+          echo "SOURCE_IMAGE=$SOURCE_IMAGE" >> "$GITHUB_ENV"
+          printf 'Bootstrap: `%s`\nSource: `%s`\n' "$BOOTSTRAP" "$SOURCE_IMAGE" >> "$GITHUB_STEP_SUMMARY"
+      - name: Qualify native Linux scratch boundary offline
+        run: |
+          docker run --rm --network none -e BATZ_TEST_RUNTIME=/opt/batz/runtime/.local \
+            -e GOPROXY=off -e GOSUMDB=off -e GOTOOLCHAIN=local -e GOMAXPROCS=2 \
+            -e GOENV=off -e CGO_ENABLED=0 "$SOURCE_IMAGE" \
+            /opt/batz/runtime/.local/go/bin/go test -tags batz_app ./internal/scratch -count=1 -v
