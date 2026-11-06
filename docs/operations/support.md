@@ -72,7 +72,8 @@ amd64 execution cannot qualify the release. Cross-builds and recipe inspection
 also cannot replace native results. The release's exact-source check records and
 manifest establish its qualified set; missing or failed checks remain blockers.
 
-The first selected candidate is `v0.1.0-rc.1`, a prerelease. GitHub Container
+The selected candidate is `v0.1.0-rc.2`, a prerelease. The unreleased rc.1 tag is
+retained unchanged. GitHub Container
 Registry hosts the repo-linked `ghcr.io/darkquasar/batz` runtime image,
 `ghcr.io/darkquasar/batz-ci` qualification image and
 `ghcr.io/darkquasar/batz-tools` bootstrap image. Preparation stages images under

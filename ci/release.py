@@ -558,7 +558,9 @@ def main(argv=None):
     child.add_argument('--prepared-install', type=Path)
     args = parser.parse_args(argv)
     env = os.environ
-    github = GitHub(env.get('GH_TOKEN') if args.command == 'publish' else None)
+    # Read-only workflow tokens authenticate API reads too. Write authority is
+    # still confined to publish, which separately requires an explicit token.
+    github = GitHub(env.get('GH_TOKEN'))
     root = Path(__file__).resolve().parents[1]
     if args.command == 'authorize':
         result = authorize(root, env, github)

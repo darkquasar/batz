@@ -1,13 +1,16 @@
 """Release trust boundaries: real local Git/files, fake external services only."""
 import copy
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location('batz_release', Path(__file__).with_name('release.py'))
 release = importlib.util.module_from_spec(spec)
@@ -48,6 +51,36 @@ class GitFixture(unittest.TestCase):
 
 
 class Authorization(GitFixture):
+    def test_authorize_cli_authenticates_read_only_lookup_and_still_checks_owner(self):
+        test = self
+
+        class Response:
+            def __init__(self, user): self.user = user
+            def __enter__(self): return self
+            def __exit__(self, *args): pass
+            def read(self): return json.dumps(self.user).encode()
+
+        class Lookup:
+            def __init__(self, user): self.user = user
+            def open(self, request, timeout):
+                test.assertEqual(request.full_url, 'https://api.github.com/users/darkquasar')
+                test.assertEqual(request.get_method(), 'GET')
+                test.assertEqual(request.get_header('Authorization'), 'Bearer invented-read-token')
+                return Response(self.user)
+
+        for user in (OWNER, dict(OWNER, id=9)):
+            with self.subTest(user=user), \
+                    patch.dict(os.environ, dict(self.env, GH_TOKEN='invented-read-token'), clear=True), \
+                    patch.object(release, '__file__', str(self.root/'ci/release.py')), \
+                    patch.object(release.urllib.request, 'build_opener', return_value=Lookup(user)), \
+                    contextlib.redirect_stdout(io.StringIO()) as output:
+                if user == OWNER:
+                    self.assertEqual(release.main(['authorize']), 0)
+                    self.assertEqual(json.loads(output.getvalue())['source_sha'], self.sha)
+                else:
+                    with self.assertRaisesRegex(ValueError, 'owner'):
+                        release.main(['authorize'])
+
     def test_only_owner_can_authorize_a_tag(self):
         self.env['GITHUB_ACTOR_ID'] = '9'
         with self.assertRaisesRegex(ValueError, 'owner'):

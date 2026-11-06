@@ -9,7 +9,8 @@ application documentation.
 The current local CloudTrail tracer runs a fixture through Bento, SQLMesh and
 DuckDB. Offline explain shows declarations, stages, native structures and sample
 values, with saved binding/case context and configuration origins. Native preview
-is qualified on macOS ARM64; other environments report unavailable.
+is qualified on macOS ARM64 and Linux AMD64, including Docker. Linux requires
+Landlock ABI 3 or newer and seccomp; missing enforcement reports unavailable.
 
 ## Pipelines, bindings, workspaces and cases
 

@@ -11,13 +11,19 @@ ancestor, including a non-tip commit, needs its own complete exact-SHA qualifica
 before sealing or publication. Moving a tag cannot substitute another revision.
 
 Production tags, readiness status/comments, releases and images require explicit
-owner authorization. The first selected candidate is the `v0.1.0-rc.1` prerelease;
+owner authorization. The selected candidate is the `v0.1.0-rc.2` prerelease;
 the selected runtime registry is repo-linked `ghcr.io/darkquasar/batz`. Native Linux
 confinement and real three-target qualification remain required; missing prepared
 images or credentials fail the affected work. No performance threshold or S8
 capability gates the first release. Active scope is local-file CloudTrail and the
 existing single-binding runtime/reader behavior. Live acquisition, R2, GCP and
 Workspace routes are deferred.
+
+The unreleased `v0.1.0-rc.1` tag is retained unchanged after repeated anonymous
+GitHub identity-lookup HTTP 403 failures. Workflow identity checks and release
+API reads use the job's scoped GitHub token; read-only jobs retain read-only
+permissions, and only the final publisher receives write authority. The stable
+owner-ID and exact-source checks remain mandatory.
 
 ```text
 +------------------+  candidate hash  +-------------------+  references  +------------------+

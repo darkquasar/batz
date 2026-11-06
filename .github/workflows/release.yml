@@ -33,8 +33,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -42,6 +45,8 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/prepare-macos
       - name: Verify owner identity and freshly fetched tag/main
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: runtime/.local/venv/bin/python -I -B ci/release.py authorize
 
   fast:
@@ -54,8 +59,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -75,8 +83,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -96,8 +107,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -117,8 +131,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -141,8 +158,11 @@ jobs:
       actions: read
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -196,8 +216,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -239,8 +262,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -310,8 +336,11 @@ jobs:
       issues: read
     steps:
       - name: Verify rerun stable owner identity before checkout
+        env:
+          OWNER_LOOKUP_TOKEN: ${{ github.token }}
         run: |
-          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+          curl --fail --silent --show-error --retry 3 --retry-delay 2 --retry-all-errors \
+            --header "Authorization: Bearer $OWNER_LOOKUP_TOKEN" https://api.github.com/users/darkquasar | \
             python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:

@@ -27,7 +27,9 @@ path=sys.stdin.readline().strip()
 c.execute("ATTACH '"+path.replace("'","''")+"' AS revision_b (READ_ONLY)")
 print(json.dumps(c.execute("SELECT (SELECT count(*) FROM demo.findings),(SELECT count(*) FROM revision_b.demo.findings)").fetchall(),separators=(',',':')),flush=True)
 c.close()`
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// This reader stays open across multiple bounded native model operations.
+	// A slow hosted runner must not expire it before the journey checks it.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	t.Cleanup(cancel)
 	cmd := exec.CommandContext(ctx, filepath.Join(root, "runtime/.local/venv/bin/python"), "-I", "-c", script, catalog)
 	var diagnostics bytes.Buffer
