@@ -15,6 +15,9 @@ import (
 // Network, Mach service lookup (including credential services), and other reads
 // remain denied. The caller owns scratch and the lifetime of all children.
 func Profile(root string, reads []string) (string, error) {
+	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+		return linuxProfile(root, reads)
+	}
 	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
 		return "", fmt.Errorf("native offline sandbox unavailable on this target")
 	}
@@ -36,6 +39,21 @@ func Profile(root string, reads []string) (string, error) {
 	return p.String(), nil
 }
 
+// Command wraps one native program with the platform's inherited kernel policy.
+func Command(profile, program string, args ...string) (string, []string, error) {
+	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
+		var policy linuxPolicy
+		if err := json.Unmarshal([]byte(profile), &policy); err != nil || policy.Python == "" {
+			return "", nil, fmt.Errorf("invalid Linux sandbox profile")
+		}
+		return policy.Python, append([]string{"-I", "-B", "-c", linuxLauncher, profile, program}, args...), nil
+	}
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+		return "", nil, fmt.Errorf("native offline sandbox unavailable on this target")
+	}
+	return "/usr/bin/sandbox-exec", append([]string{"-p", profile, program}, args...), nil
+}
+
 // Qualify checks the actual host/child rather than treating a policy as proof.
 func Qualify(ctx context.Context, profile, python, root, forbidden string) error {
 	script := `import os,socket,sys
@@ -55,7 +73,11 @@ except PermissionError:pass
 else:raise RuntimeError('network permitted')
 print('qualified')
 `
-	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, python, "-I", "-B", "-c", script, root, forbidden)
+	program, args, err := Command(profile, python, "-I", "-B", "-c", script, root, forbidden)
+	if err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = root
 	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + root, "TMPDIR=" + root, "PYTHONDONTWRITEBYTECODE=1"}
 	output, err := cmd.CombinedOutput()

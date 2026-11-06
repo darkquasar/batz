@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"batz/internal/contracts"
+	"batz/internal/scratch"
 )
 
 // processRSS samples the child's process group plus current descendants. RSS is
@@ -260,8 +261,11 @@ func sandboxedChild(privateRoot, profile string, ctx context.Context, lease *os.
 		// of the current stage. Every writable path belongs to the same budget.
 		budget.Roots = []string{privateRoot}
 		environment = append(environment, "MAX_FORK_WORKERS=1")
-		args = append([]string{"-p", profile, program}, args...)
-		program = "/usr/bin/sandbox-exec"
+		var err error
+		program, args, err = scratch.Command(profile, program, args...)
+		if err != nil {
+			return contracts.ResourceUsage{}, err
+		}
 	}
 	return child(ctx, lease, dir, logpath, budget, environment, program, args...)
 }

@@ -49,7 +49,11 @@ for query in ["SELECT * FROM read_text('"+sys.argv[1]+"')", "COPY (SELECT 1) TO 
  except duckdb.Error:pass
  else:raise RuntimeError('SQL escaped sandbox')
 print('SQL denied')`
-	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, python, "-I", "-B", "-c", script, forbidden)
+	program, args, err := scratch.Command(profile, python, "-I", "-B", "-c", script, forbidden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = private
 	output, err := cmd.CombinedOutput()
 	if err != nil {
