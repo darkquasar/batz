@@ -109,15 +109,13 @@ func TestPreviewRuntimeChecksumMismatchIsAlwaysAnIntegrityFailure(t *testing.T) 
 	if err := json.Unmarshal(data, &lock); err != nil {
 		t.Fatal(err)
 	}
-	artifact := lock
-	for _, key := range []string{"installed_binaries", runtime.GOOS + "/" + runtime.GOARCH, "collector"} {
-		nested, ok := artifact[key].(map[string]any)
-		if !ok {
-			t.Fatalf("missing installed receipt at %s", key)
-		}
-		artifact = nested
+	// Deliberately declare a corrupt current-target collector independently of
+	// historical target entries. Linux normally uses its source-bound receipt.
+	lock["installed_binaries"] = map[string]any{
+		runtime.GOOS + "/" + runtime.GOARCH: map[string]any{
+			"collector": map[string]string{"path": "runtime/.local/batz-collector", "sha256": strings.Repeat("0", 64)},
+		},
 	}
-	artifact["sha256"] = strings.Repeat("0", 64)
 	changed, err := json.Marshal(lock)
 	if err != nil {
 		t.Fatal(err)

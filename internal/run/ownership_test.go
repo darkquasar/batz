@@ -49,7 +49,8 @@ func TestAppOwnerProcess(t *testing.T) {
 }
 
 func TestAppParentDeathKeepsExclusionUntilChildSettles(t *testing.T) {
-	dir, err := os.MkdirTemp("/private/tmp", "batz-owner-")
+	// Keep the Unix socket path short on both supported native platforms.
+	dir, err := os.MkdirTemp("/tmp", "batz-owner-")
 	if err != nil {
 		t.Fatal(err)
 	}

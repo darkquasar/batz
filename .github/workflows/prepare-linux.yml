@@ -25,6 +25,28 @@ defaults:
     shell: bash
 
 jobs:
+  diagnose-preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Capture the retained candidate's inner preview failure on native AMD64
+        run: |
+          test "$(uname -m)" = x86_64
+          docker run --rm --network none -e BATZ_TEST_RUNTIME=/opt/batz/runtime/.local \
+            -e GOPROXY=off -e GOSUMDB=off -e GOTOOLCHAIN=local -e GOMAXPROCS=2 \
+            -e GOENV=off -e CGO_ENABLED=0 \
+            -e GOCACHE=/opt/batz/runtime/.local/gocache \
+            -e GOMODCACHE=/opt/batz/runtime/.local/gomod \
+            ghcr.io/darkquasar/batz-ci@sha256:d863ce6c294df8637771ea99b363290ec6c341e1b3e5325f3a7cfac15ca873a2 \
+            /bin/bash -c '
+              cp runtime/dependencies.lock.json runtime/.local/dependencies.lock.json
+              /opt/batz/runtime/.local/go/bin/go test -tags batz_app ./internal/app \
+                -run "^TestAppNativePreviewComposesWorkspaceSelectionStructuresMacrosAndRepeatability$" -count=1 -v
+              result=$?
+              find /tmp -path "*/discovery/inspection.log" -print -exec cat {} \;
+              exit "$result"
+            '
+
   archives:
     if: >-
       github.repository == 'darkquasar/batz' && github.actor_id == '28435534' &&
