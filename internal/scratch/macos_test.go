@@ -15,8 +15,8 @@ import (
 )
 
 func TestAppNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
-	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
-		t.Skip("native macOS qualification only")
+	if !((runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || (runtime.GOOS == "linux" && runtime.GOARCH == "amd64")) {
+		t.Skip("supported native targets only")
 	}
 	root := os.Getenv("BATZ_TEST_RUNTIME")
 	if root == "" {
@@ -44,13 +44,30 @@ func TestAppNativeSandboxDeniesOutsideDataAndNetwork(t *testing.T) {
 	// DuckDB external readers and SQL COPY are denied by the same actual policy.
 	script := `import duckdb,sys
 c=duckdb.connect()
+assert c.execute('SELECT 1').fetchone() == (1,)
 for query in ["SELECT * FROM read_text('"+sys.argv[1]+"')", "COPY (SELECT 1) TO '"+sys.argv[1]+"-copy'"]:
  try:c.execute(query).fetchall()
  except duckdb.Error:pass
  else:raise RuntimeError('SQL escaped sandbox')
+if sys.platform == 'linux':
+ for path in ['/proc/meminfo', '/proc/self/status']:
+  try:open(path).read()
+  except PermissionError:pass
+  else:raise RuntimeError('unrelated kernel file readable: ' + path)
 print('SQL denied')`
-	cmd := exec.CommandContext(ctx, "/usr/bin/sandbox-exec", "-p", profile, python, "-I", "-c", script, forbidden)
+	// Exercise a real script file, as discovery/model/inspection do. CPython
+	// uses a descriptor close-on-exec ioctl when opening this entry point.
+	scriptPath := filepath.Join(private, "native-probe.py")
+	if err = os.WriteFile(scriptPath, []byte(script), 0600); err != nil {
+		t.Fatal(err)
+	}
+	program, args, err := scratch.Command(profile, python, "-I", "-B", scriptPath, forbidden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(ctx, program, args...)
 	cmd.Dir = private
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "HOME=" + private, "TMPDIR=" + private, "PYTHONDONTWRITEBYTECODE=1", "MAX_FORK_WORKERS=1", "SQLMESH__DISABLE_ANONYMIZED_ANALYTICS=true", "NO_COLOR=1"}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("native SQL isolation: %v %s", err, output)

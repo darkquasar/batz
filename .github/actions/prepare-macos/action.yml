@@ -10,7 +10,7 @@ runs:
     - name: Resolve private tool and cache paths
       shell: bash
       run: |
-        echo "BATZ_TOOLCHAIN_ROOT=$RUNNER_TEMP/batz-toolchain" >> "$GITHUB_ENV"
+        echo "BATZ_TOOLCHAIN_ROOT=$GITHUB_WORKSPACE/runtime/.local" >> "$GITHUB_ENV"
         echo "BATZ_DOWNLOAD_CACHE=$RUNNER_TEMP/batz-cache/downloads" >> "$GITHUB_ENV"
         echo "GOMODCACHE=$RUNNER_TEMP/batz-cache/gomod" >> "$GITHUB_ENV"
         echo "GOCACHE=$RUNNER_TEMP/batz-cache/gocache" >> "$GITHUB_ENV"
@@ -20,7 +20,7 @@ runs:
         path: |
           ${{ env.BATZ_DOWNLOAD_CACHE }}
           ${{ env.GOMODCACHE }}
-        key: batz-macos-15-arm64-v1-${{ hashFiles('runtime/dependencies.lock.json', 'ci/prepare-macos.py') }}
+        key: batz-macos-15-arm64-v2-${{ hashFiles('runtime/dependencies.lock.json', 'ci/prepare-macos.py', 'ci/setup.py', 'mise.toml', 'mise.lock', 'pyproject.toml', 'uv.lock') }}
     - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       if: inputs.build-cache == 'true'
       with:
@@ -28,4 +28,7 @@ runs:
         key: batz-build-macos-15-arm64-v3-${{ hashFiles('go.mod', 'go.sum') }}-${{ github.job }}
     - name: Prepare pinned dependencies
       shell: bash
-      run: python3 -I ci/prepare-macos.py
+      run: python3 -I -B ci/prepare-macos.py
+    - name: Verify completed runtime preparation
+      shell: bash
+      run: runtime/.local/venv/bin/python -I -B ci/setup.py --check

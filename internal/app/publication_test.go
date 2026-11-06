@@ -54,9 +54,24 @@ func nativeContent(t *testing.T) string {
 		if err := json.Unmarshal(lock, &receipt); err != nil {
 			t.Fatal(err)
 		}
+		// Inert synthetic files are not a setup-created Python installation.
+		// Native lanes retain the immutable declaration and its real receipt.
+		if python, ok := receipt["python"].(map[string]any); ok {
+			delete(python, "binary_sha256")
+		}
 		receipt["installed_binaries"] = map[string]any{runtime.GOOS + "/" + runtime.GOARCH: artifacts}
 		lock, err = json.Marshal(receipt)
 		if err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		// Native fixtures reuse the source-verified runtime without manufacturing
+		// a new authority. Copy only its Go build inputs so source admission can
+		// bind the same collector receipt; no production native content is used.
+		for _, name := range []string{"go.mod", "go.sum", "collector", "cmd/batz-collector", "internal/buildinfo"} {
+			copyTree(t, filepath.Join(root, name), filepath.Join(content, name))
+		}
+		if err := os.WriteFile(filepath.Join(content, ".git"), nil, 0600); err != nil {
 			t.Fatal(err)
 		}
 	}

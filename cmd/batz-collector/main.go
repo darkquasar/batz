@@ -2,6 +2,7 @@ package main
 
 import (
 	"batz/collector/plugins"
+	"batz/internal/buildinfo"
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,7 +26,8 @@ func main() {
 }
 func run() error {
 	if len(os.Args) != 3 {
-		return fmt.Errorf("usage: batz-collector NATIVE_CONFIG CONTEXT_JSON")
+		identity := buildinfo.Current()
+		return fmt.Errorf("batz-collector %s (%s, %s): usage: batz-collector NATIVE_CONFIG CONTEXT_JSON", identity.Version, identity.SourceSHA, identity.Target)
 	}
 	b, err := os.ReadFile(os.Args[2])
 	if err != nil {

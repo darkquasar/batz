@@ -145,7 +145,7 @@ func validateModelReferences(parent context.Context, root, project string, contr
 	var scope contracts.NativeScope
 	copied := filepath.Join(dir, "project")
 	if err = copyProject(project, copied); err == nil {
-		scope, err = inspectModelScope(parent, root, copied, dir, "", contract)
+		scope, err = inspectModelScope(parent, root, copied, dir, dir, "", contract)
 	}
 	if err != nil {
 		cleanup()
@@ -156,7 +156,7 @@ func validateModelReferences(parent context.Context, root, project string, contr
 
 // The bridge may select only files already admitted into this immutable copy.
 // Discovery output never authorizes reads from another root.
-func inspectModelScope(parent context.Context, root, project, scratch, profile string, contract contracts.ExecutionContract) (contracts.NativeScope, error) {
+func inspectModelScope(parent context.Context, root, project, scratch, privateRoot, profile string, contract contracts.ExecutionContract) (contracts.NativeScope, error) {
 	var scope contracts.NativeScope
 	result := filepath.Join(scratch, "scope.json")
 	raw, err := json.Marshal(map[string]any{"validate_only": true, "project": project, "contract": contract, "result": result})
@@ -169,7 +169,7 @@ func inspectModelScope(parent context.Context, root, project, scratch, profile s
 	}
 	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
-	_, err = pipeline.InspectPrivate(ctx, scratch, profile, filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py"), request)
+	_, err = pipeline.InspectPrivate(ctx, scratch, privateRoot, profile, filepath.Join(root, "runtime/.local/venv/bin/python"), filepath.Join(root, "runtime/sqlmesh/runner.py"), request)
 	if err != nil {
 		if ctx.Err() != nil {
 			return scope, ctx.Err()

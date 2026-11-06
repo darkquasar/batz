@@ -21,11 +21,11 @@ Use `--replay` with `run` to acquire every selected file again. Replay adds fres
 source observations; it differs from model-only `retry`.
 
 ```sh
-runtime/.local/batz run pipelines/aws-cloudtrail/pipeline.yaml \
+bin/batz run pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
   --binding-id demo --input path=/evidence/cloudtrail
 # Same selection, deliberately acquired again:
-runtime/.local/batz run pipelines/aws-cloudtrail/pipeline.yaml \
+bin/batz run pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
   --binding-id demo --input path=/evidence/cloudtrail --replay
 ```
@@ -47,9 +47,9 @@ uses committed parsed evidence for the same binding; its source path is an
 identity selector and can refer to a file that no longer exists.
 
 ```sh
-runtime/.local/batz status --workspace /tmp/batz-example
-runtime/.local/batz status --workspace /tmp/batz-example --run-id RUN_ID
-runtime/.local/batz retry pipelines/aws-cloudtrail/pipeline.yaml \
+bin/batz status --workspace /tmp/batz-example
+bin/batz status --workspace /tmp/batz-example --run-id RUN_ID
+bin/batz retry pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
   --binding-id demo --input path=/original/source.json --run-id FAILED_RUN_ID
 ```

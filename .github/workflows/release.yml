@@ -1,0 +1,349 @@
+name: Qualified version release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+# Candidate artifact run and both image identities are explicit owner configuration.
+# Read-only jobs receive no publishing token or registry write credential.
+env:
+  CANDIDATE_RUN_ID: ${{ vars.BATZ_RELEASE_CANDIDATE_RUN_ID }}
+  CANDIDATE_SHA256: ${{ vars.BATZ_RELEASE_CANDIDATE_SHA256 }}
+  BATZ_RELEASE_IMAGE: ${{ vars.BATZ_RELEASE_IMAGE }}
+  BATZ_PREPARED_LINUX_IMAGE: ${{ vars.BATZ_PREPARED_LINUX_IMAGE }}
+
+jobs:
+  authorize:
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Verify owner identity and freshly fetched tag/main
+        run: runtime/.local/venv/bin/python -I -B ci/release.py authorize
+
+  fast:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Full fast contracts
+        run: ci/test fast
+
+  shared-runtime:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Full shared app contracts
+        run: ci/test app
+
+  models:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Full native catalog contracts
+        run: ci/test models --mode native
+
+  adapters:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Full adapter catalog contracts
+        run: ci/test models --mode adapters
+
+  install-darwin-arm64:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Download frozen qualified candidate inputs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh run download "$CANDIDATE_RUN_ID" --repo darkquasar/batz \
+            --name release-candidate --dir "$RUNNER_TEMP/release-dist"
+          runtime/.local/venv/bin/python -I -B - <<'PY'
+          import os, pathlib, sys
+          sys.path.insert(0, 'ci')
+          from release import digest, require, validate_candidate
+          dist = pathlib.Path(os.environ['RUNNER_TEMP']) / 'release-dist'
+          path = dist / 'candidate.json'
+          require(digest(path.read_bytes()) == os.environ['CANDIDATE_SHA256'], 'frozen candidate digest mismatch')
+          candidate, _ = validate_candidate(path, dist)
+          require(candidate['source_sha'] == os.environ['GITHUB_SHA'] and
+                  candidate['version'] == os.environ['GITHUB_REF_NAME'], 'candidate does not match tagged source/version')
+          PY
+      - name: Build exact source with the accepted archive producer
+        env:
+          VERSION: ${{ github.ref_name }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          for target in darwin/arm64 linux/amd64; do
+            runtime/.local/venv/bin/python -I -B packaging/build.py archive \
+              --root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/rebuilt" \
+              --version "$VERSION" --source-sha "$SOURCE_SHA" --target "$target" \
+              --go "$BATZ_TOOLCHAIN_ROOT/go/bin/go"
+            archive="batz-$VERSION-${target%/*}-${target#*/}.tar.gz"
+            cmp "$RUNNER_TEMP/rebuilt/$archive" "$RUNNER_TEMP/release-dist/$archive"
+          done
+      - name: 'Qualify installed darwin/arm64 candidate [sha256:${{ env.CANDIDATE_SHA256 }}]'
+        run: |
+          export BATZ_RELEASE_MISE="$BATZ_DOWNLOAD_CACHE/mise-$(runtime/.local/venv/bin/python -I -B -c 'import json; print(json.load(open("runtime/dependencies.lock.json"))["mise"]["version"])')"
+          runtime/.local/venv/bin/python -I -B ci/release.py qualify-native \
+            "$RUNNER_TEMP/release-dist/candidate.json" "$RUNNER_TEMP/release-dist" --target darwin/arm64
+
+  install-linux-amd64:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require explicit digest-pinned prepared Linux image
+        run: |
+          [[ "$BATZ_PREPARED_LINUX_IMAGE" =~ ^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]
+          test "$(uname -m)" = x86_64
+          docker pull --platform linux/amd64 "$BATZ_PREPARED_LINUX_IMAGE"
+      - name: 'Qualify installed linux/amd64 candidate [sha256:${{ env.CANDIDATE_SHA256 }}]'
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          # /opt/batz contains this exact source and its baked owned runtime;
+          # /opt/Batz installations/candidate contains this candidate's separately baked install.
+          # No install/sync/sample fetch is permitted in this ordinary test run.
+          docker run --rm --platform linux/amd64 --network none \
+            -e SOURCE_SHA -e CANDIDATE_SHA256 --entrypoint /bin/bash "$BATZ_PREPARED_LINUX_IMAGE" \
+            -euo pipefail -c '
+              test "$(uname -m)" = x86_64
+              cd /opt/batz
+              test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+              test -z "$(git status --porcelain=v1 --untracked-files=all)"
+              test "$(sha256sum /opt/release-dist/candidate.json | cut -d " " -f 1)" = "$CANDIDATE_SHA256"
+              ci/test all-local
+              runtime/.local/venv/bin/python -I -B ci/release.py qualify-native \
+                /opt/release-dist/candidate.json /opt/release-dist --target linux/amd64 \
+                --prepared-install "/opt/Batz installations/candidate"
+            '
+
+  install-docker-linux-amd64:
+    needs: authorize
+    if: >-
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require exact prepared and distribution image identities
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          [[ "$BATZ_PREPARED_LINUX_IMAGE" =~ ^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]
+          test -n "$BATZ_RELEASE_IMAGE"
+          test "$(uname -m)" = x86_64
+          docker pull --platform linux/amd64 "$BATZ_PREPARED_LINUX_IMAGE"
+          # The prepared image carries the frozen candidate, never a mutable tag.
+          docker create --name batz-candidate "$BATZ_PREPARED_LINUX_IMAGE" /bin/true
+          docker cp batz-candidate:/opt/release-dist "$RUNNER_TEMP/release-dist"
+          docker rm batz-candidate
+          test "$(sha256sum "$RUNNER_TEMP/release-dist/candidate.json" | cut -d ' ' -f 1)" = "$CANDIDATE_SHA256"
+          # stdlib bootstrap reads JSON only; Batz tests use the baked pinned runtime.
+          DIGEST=$(python3 -I -B -c 'import json,sys; c=json.load(open(sys.argv[1])); assert c["source_sha"]==sys.argv[2]; print(c["docker"]["digest"])' "$RUNNER_TEMP/release-dist/candidate.json" "$SOURCE_SHA")
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "DISTRIBUTION_IMAGE=$BATZ_RELEASE_IMAGE@$DIGEST" >> "$GITHUB_ENV"
+          docker pull --platform linux/amd64 "$BATZ_RELEASE_IMAGE@$DIGEST"
+      - name: 'Qualify installed Docker linux/amd64 candidate [sha256:${{ env.CANDIDATE_SHA256 }}]'
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          # Distribution images must include a prepared /opt/Batz installations/candidate matching
+          # the candidate; this probe uses real Docker, network disabled.
+          docker run --rm --platform linux/amd64 --network none --user "$(id -u):$(id -g)" \
+            -e SOURCE_SHA -e CANDIDATE_SHA256 \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/qualification,readonly" \
+            --mount "type=bind,src=$RUNNER_TEMP/release-dist,dst=/opt/release-dist,readonly" \
+            --entrypoint "/opt/Batz installations/candidate/runtime/.local/venv/bin/python" "$DISTRIBUTION_IMAGE" \
+            -I -B /qualification/ci/release.py qualify-native \
+            /opt/release-dist/candidate.json /opt/release-dist --target linux/amd64 \
+            --prepared-install "/opt/Batz installations/candidate"
+
+  gate:
+    needs: [authorize, fast, shared-runtime, models, adapters, install-darwin-arm64, install-linux-amd64, install-docker-linux-amd64]
+    if: always()
+    runs-on: macos-15
+    timeout-minutes: 5
+    steps:
+      - name: Require every qualification job to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          IFS=, read -ra results <<< "$RESULTS"
+          test "${#results[@]}" = 8
+          for result in "${results[@]}"; do test "$result" = success; done
+
+  publish:
+    needs: gate
+    if: >-
+      always() && needs.gate.result == 'success' &&
+      github.repository == 'darkquasar/batz' && github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/v') && github.actor == 'darkquasar' &&
+      github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+      statuses: read
+      issues: read
+    steps:
+      - name: Verify rerun stable owner identity before checkout
+        run: |
+          curl --fail --silent --show-error https://api.github.com/users/darkquasar | \
+            python3 -I -B -c 'import json,sys; u=json.load(sys.stdin); assert u["login"] == "darkquasar" and u["id"] == 28435534'
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require the exact prepared publisher image
+        run: |
+          [[ "$BATZ_PREPARED_LINUX_IMAGE" =~ ^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]]
+          test "$(uname -m)" = x86_64
+          docker pull --platform linux/amd64 "$BATZ_PREPARED_LINUX_IMAGE"
+      - name: Reauthorize, admit readiness and publish the frozen set
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The prepared image must include Docker CLI for immutable registry
+          # verification. Only this final job receives the write token/socket.
+          docker run --rm --platform linux/amd64 \
+            -e GH_TOKEN -e BATZ_RELEASE_IMAGE -e CANDIDATE_SHA256 \
+            -e GITHUB_REPOSITORY -e GITHUB_EVENT_NAME -e GITHUB_REF -e GITHUB_SHA \
+            -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR \
+            -e GITHUB_EVENT_PATH=/event/event.json \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0=/tmp/batz-publisher \
+            --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/qualification,readonly" \
+            --mount "type=bind,src=$GITHUB_EVENT_PATH,dst=/event/event.json,readonly" \
+            --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock \
+            --entrypoint /bin/bash "$BATZ_PREPARED_LINUX_IMAGE" -euo pipefail -c '
+              mkdir /tmp/batz-publisher
+              cp -a /qualification/. /tmp/batz-publisher/
+              cd /tmp/batz-publisher
+              test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+              test "$(sha256sum /opt/release-dist/candidate.json | cut -d " " -f 1)" = "$CANDIDATE_SHA256"
+              /opt/batz/runtime/.local/venv/bin/python -I -B /tmp/batz-publisher/ci/release.py authorize
+              /opt/batz/runtime/.local/venv/bin/python -I -B /tmp/batz-publisher/ci/release.py seal /opt/release-dist/candidate.json /opt/release-dist
+              /opt/batz/runtime/.local/venv/bin/python -I -B /tmp/batz-publisher/ci/release.py publish /opt/release-dist/release.json /opt/release-dist
+            '

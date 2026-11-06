@@ -154,7 +154,7 @@ func assertInspectionFailures(t *testing.T, root string, report contracts.Explai
 			}
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		_, err := pipeline.InspectPrivate(ctx, dir, profile, filepath.Join(root, "runtime/.local/venv/bin/python"), tc.script, path)
+		_, err := pipeline.InspectPrivate(ctx, dir, dir, profile, filepath.Join(root, "runtime/.local/venv/bin/python"), tc.script, path)
 		cancel()
 		var exit *exec.ExitError
 		if !errors.As(err, &exit) || exit.ExitCode() != tc.exit {

@@ -124,7 +124,7 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	if err = os.MkdirAll(inspection, 0700); err != nil {
 		return 1, err
 	}
-	scope, err := inspectModelScope(ctx, root, copied, inspection, profile, manifest.Execution(example.Route))
+	scope, err := inspectModelScope(ctx, root, copied, inspection, dir, profile, manifest.Execution(example.Route))
 	if err != nil {
 		return 3, err
 	}
@@ -156,7 +156,7 @@ func preview(root, definition, workspace string, manifest contracts.SourcePipeli
 	if err = os.WriteFile(requestPath, raw, 0600); err != nil {
 		return 1, err
 	}
-	usage, err := pipeline.InspectPrivate(ctx, dir, profile, python, filepath.Join(root, "runtime/sqlmesh/inspect_preview.py"), requestPath)
+	usage, err := pipeline.InspectPrivate(ctx, dir, dir, profile, python, filepath.Join(root, "runtime/sqlmesh/inspect_preview.py"), requestPath)
 	report.Runtime["inspection_resources"] = usage
 	if err != nil {
 		code := 1

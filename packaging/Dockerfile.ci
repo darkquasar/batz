@@ -1,0 +1,49 @@
+# syntax=docker/dockerfile:1
+# Build preparation only. Ordinary Linux CI consumes the resulting image by digest.
+ARG PREPARED_IMAGE
+FROM --platform=linux/amd64 ${PREPARED_IMAGE} AS source
+ARG PREPARED_IMAGE
+ARG SOURCE_SHA
+ARG LINUX_ARCHIVE
+ARG LINUX_ARCHIVE_SHA256
+LABEL dev.batz.image-role="ci-tools-and-fixtures" \
+      org.opencontainers.image.source="https://github.com/darkquasar/batz" \
+      dev.batz.fixture-source="${SOURCE_SHA}"
+USER root
+WORKDIR /opt/batz
+COPY . .
+RUN case "$PREPARED_IMAGE" in *@sha256:*) ;; *) echo 'digest-pinned prepared image required' >&2; exit 1;; esac \
+    && test "$(git rev-parse HEAD)" = "$SOURCE_SHA" \
+    && test -z "$(git status --porcelain=v1 --untracked-files=all)" \
+    && mise trust mise.toml && mise install
+# The CI launcher must use this prepared toolchain while explicitly selecting the
+# app/content SHA under test. Never use this baked source as proof of another SHA.
+# Linux native/offline qualification remains required before using a release gate.
+
+# Release qualification image: supplied dist is the already frozen candidate set.
+# This source image and the distributed runtime image have distinct roles/digests.
+FROM source AS qualification
+ARG LINUX_ARCHIVE
+ARG LINUX_ARCHIVE_SHA256
+COPY dist/ /opt/release-dist/
+RUN test "${#LINUX_ARCHIVE_SHA256}" = 64 \
+    && echo "$LINUX_ARCHIVE_SHA256  /opt/release-dist/$LINUX_ARCHIVE" | sha256sum -c - \
+    && mkdir -p "/opt/Batz installations/candidate" \
+    && tar -xzf "/opt/release-dist/$LINUX_ARCHIVE" --strip-components=1 -C "/opt/Batz installations/candidate"
+ENV BATZ_INSTALL="/opt/Batz installations/candidate"
+WORKDIR ${BATZ_INSTALL}
+RUN mise trust mise.toml && mise install \
+    && mise install \
+    && rm -rf runtime/.local/venv \
+    && mise install \
+    && runtime/.local/venv/bin/python -I -B ci/setup.py --check
+WORKDIR /opt/batz
+RUN GOMODCACHE=/opt/batz/runtime/.local/gomod GOCACHE=/opt/batz/runtime/.local/gocache \
+      runtime/.local/venv/bin/python -I -B packaging/build.py archive \
+        --root /opt/batz --output /tmp/batz-upgrade-fixture \
+        --version v0.1.0-rc.2.local-upgrade --source-sha "$SOURCE_SHA" \
+        --target linux/amd64 --go /opt/batz/runtime/.local/go/bin/go --development \
+    && runtime/.local/venv/bin/python -I -B ci/verify-upgrade.py \
+        --first "/opt/Batz installations/candidate" \
+        --archive /tmp/batz-upgrade-fixture/batz-v0.1.0-rc.2.local-upgrade-linux-amd64.tar.gz \
+        --mise /usr/local/bin/mise

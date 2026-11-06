@@ -5,13 +5,19 @@ JSON file, with a compact S3 GetObject/IAMUser mapping. Other valid events remai
 in parsed/source-staging evidence with unsupported mapping coverage. This is not
 full CloudTrail support. RAM is monitored without a Batz cutoff; each run reports average and peak usage
 for collection/model processes. Scratch uses a sampled 1 GiB stop threshold, so
-brief overshoot is possible. See the [owner decision](../contracts/s1-macos-budget-decision.md).
+brief overshoot is possible. These finite safety bounds are separate from
+verification cost observations.
 
-From the app checkout, after the project-local tools have been prepared:
+For a downloaded native installation, follow [the installation guide](install.md).
+From a source checkout, prepare the pinned tools and owned environment, then build
+the development CLI with the prepared Go toolchain:
 
 ```sh
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml
-runtime/.local/batz run pipelines/aws-cloudtrail/pipeline.yaml \
+mise trust
+mise install
+GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off runtime/.local/go/bin/go build -trimpath -o bin/batz ./cmd/batz
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml
+bin/batz run pipelines/aws-cloudtrail/pipeline.yaml \
   --project . --workspace /tmp/batz-example --route local_raw \
   --binding-id demo --input path=repo://pipelines/aws-cloudtrail/fixtures/api-read.json
 ```

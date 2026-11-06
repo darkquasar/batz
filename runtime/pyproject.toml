@@ -1,3 +1,5 @@
+# Source declarations used to generate the retained requirements locks.
+# Installation consumes the exact translated root pyproject.toml and uv.lock.
 [project]
 name = "batz-runtime"
 version = "0.0.0"

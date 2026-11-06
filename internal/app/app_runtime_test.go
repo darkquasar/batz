@@ -375,19 +375,10 @@ func TestAppSharedPipelineJourney(t *testing.T) {
 	if err := os.Remove(input); err != nil {
 		t.Fatal(err)
 	}
-	tools, err := filepath.EvalSymlinks(filepath.Join(root, "runtime/.local"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Remove(filepath.Join(root, "runtime/.local")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Mkdir(filepath.Join(root, "runtime/.local"), 0700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(tools, "venv"), filepath.Join(root, "runtime/.local/venv")); err != nil {
-		t.Fatal(err)
-	}
+	// Keep the uv-owned environment intact. The missing source and the absence
+	// of collection resources below prove retained-input retry in this journey;
+	// TestObservedReceiptCannotAuthorizeForeignPython separately proves Python
+	// admission needs no collector, without manufacturing a foreign environment.
 	var retried, retryErrors bytes.Buffer
 	code = app.Execute([]string{"retry", filepath.Join(root, "internal/app/testdata/synthetic/pipeline.yaml"), "--run-id", string(failed.Identity.Run), "--project", root, "--route", "local_raw", "--workspace", workspace, "--binding-id", "demo", "--input", "path=" + input}, &retried, &retryErrors)
 	var recovered contracts.RunReport

@@ -45,23 +45,17 @@ func explain(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return preflightDiagnostic(stderr, 2, err)
 	}
-	if *project == "" {
-		p := filepath.Dir(definition)
-		for {
-			if _, err = os.Stat(filepath.Join(p, ".git")); err == nil {
-				*project = p
-				break
-			}
-			parent := filepath.Dir(p)
-			if parent == p {
-				return preflightDiagnostic(stderr, 2, errors.New("no content checkout; use --project"))
-			}
-			p = parent
-		}
-	}
-	*project, err = filepath.Abs(*project)
+	executable, err := os.Executable()
 	if err != nil {
 		return preflightDiagnostic(stderr, 2, err)
+	}
+	*project, err = config.ProjectRoot(*project, filepath.Dir(definition), executable)
+	if err != nil {
+		return preflightDiagnostic(stderr, 2, err)
+	}
+	contentErr := verifyReleaseContent(*project)
+	if contentErr != nil && *level == 3 {
+		return preflightDiagnostic(stderr, 4, contentErr)
 	}
 	pipeline, err := loadPipeline(definition)
 	if err != nil {
@@ -99,6 +93,9 @@ func explain(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 	report := contracts.ExplainReport{APIVersion: contracts.APIVersion, Kind: "ExplainReport", Pipeline: pipeline.Name, Version: pipeline.Version, Level: *level, Project: pipeline.Normalization.Project, Routes: []contracts.ExplainRoute{}, Assets: map[string]string{}, Diagnostics: []contracts.Diagnostic{}, Stages: []contracts.ExplainStage{}, Structures: []contracts.ExplainStructure{}, Samples: []contracts.ExplainSample{}, Resolution: map[string]contracts.ValueOrigin{}, Runtime: map[string]any{}}
+	if contentErr != nil {
+		report.Diagnostics = append(report.Diagnostics, contracts.Diagnostic{Category: "integrity", Code: "dependency-integrity", Source: "release-content", Message: contentErr.Error()})
+	}
 	report.Resolution = selection.Origins
 	asset := func(label, path string) {
 		if strings.HasPrefix(path, "workspace://") {

@@ -6,9 +6,9 @@ An omitted route selects the sole declared route; multiple routes need an
 explicit selection for execution.
 
 ```sh
-runtime/.local/batz run --binding /path/binding.yaml --project . --workspace /tmp/case
-runtime/.local/batz run --case /path/case.yaml --binding-id cloudtrail --project .
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --binding /path/binding.yaml --format json
+bin/batz run --binding /path/binding.yaml --project . --workspace /tmp/case
+bin/batz run --case /path/case.yaml --binding-id cloudtrail --project .
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --binding /path/binding.yaml --format json
 ```
 
 A saved binding is a versioned closed document:

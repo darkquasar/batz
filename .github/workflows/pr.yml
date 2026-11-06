@@ -44,7 +44,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || 'origin/main' }}
         run: |
           ci/select "$BASE" HEAD > "$RUNNER_TEMP/batz-selection.json"
-          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I - <<'PY'
+          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I -B - <<'PY'
           import json, os
           from pathlib import Path
           selected = json.loads((Path(os.environ["RUNNER_TEMP"]) / "batz-selection.json").read_text())
@@ -99,7 +99,7 @@ jobs:
       - env:
           PIPELINES: ${{ needs.select.outputs.models }}
         run: |
-          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I - <<'PYCODE'
+          "$BATZ_TOOLCHAIN_ROOT/venv/bin/python" -I -B - <<'PYCODE'
           import json, os, subprocess
           subprocess.run(['ci/test', 'models', '--mode', 'native', *json.loads(os.environ['PIPELINES'])], check=True)
           PYCODE
