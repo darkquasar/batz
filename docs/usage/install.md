@@ -125,6 +125,22 @@ Local `--development` candidates retain dirty/source-tree identity and cannot qu
 as official releases. `candidate --help` assembles both native archive records with
 a real immutable Docker digest; it does not publish or invent a registry identity.
 
-Docker uses the same CLI with an explicit workspace volume. The production image
-reference and runnable owner example remain pending the registry/namespace decision
-and actual Linux/Docker qualification; no image is published by these instructions.
+The Docker distribution includes Batz, its collector, Python environment and native
+pipeline content. Your input and workspace folders stay outside the image. Select
+the `ghcr.io/darkquasar/batz@sha256:...` runtime reference recorded in the release
+manifest as `BATZ_IMAGE`. For a Linux amd64 host, run a local CloudTrail file with:
+
+```sh
+mkdir -p "$PWD/workspace"
+docker run --rm --user "$(id -u):$(id -g)" \
+  --mount "type=bind,src=$PWD/evidence,dst=/evidence,readonly" \
+  --mount "type=bind,src=$PWD/workspace,dst=/workspace" \
+  "$BATZ_IMAGE" run \
+  "/opt/Batz installations/candidate/pipelines/aws-cloudtrail/pipeline.yaml" \
+  --workspace /workspace --binding-id example --route local_raw \
+  --input path=/evidence/cloudtrail.json
+```
+
+Using your user/group IDs keeps workspace results readable by your host user.
+The image uses its prepared environment; ordinary commands do not install tools.
+Results and run state remain in the mounted workspace after the container exits.

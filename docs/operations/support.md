@@ -52,32 +52,40 @@ queue time separately when measured. Keep verification inexpensive and simplify
 redundant work; there is no numerical performance pass/fail gate. Finite execution,
 process and resource safety limits remain required.
 
-## Local S9 readiness limits
+## Platform qualification
 
-The authoring host is native macOS arm64. The Docker CLI is installed but its daemon
-socket is unavailable; a native Linux amd64 host has not been provided. Current
-Linux offline confinement is unavailable and fails closed. Linux and Docker native
-execution, installation and confinement qualification therefore remain open.
-Cross-builds or recipe inspection cannot replace those results.
+Linux sample execution requires enabled Landlock ABI 3 or newer and seccomp.
+The launcher applies both policies before executing the collector or Python child;
+children inherit those restrictions. Missing kernel support reports unavailable.
+The ordinary runtime image needs no privileged-container or user-namespace exception.
 
-The first production version/channel and Docker registry/namespace/access remain
-owner decisions. Local setup, archive generation and failure-path tests do not
-choose them. Production tags, GitHub releases, image publication and package
-publication require a separate grant. No package-manager automation is required.
+Native Linux qualification runs on GitHub's standard Ubuntu amd64 host. Docker
+Desktop on an ARM64 authoring host can help diagnose a failure, but emulated
+amd64 execution cannot qualify the release. Cross-builds and recipe inspection
+also cannot replace native results. The release's exact-source check records and
+manifest establish its qualified set; missing or failed checks remain blockers.
+
+The first selected candidate is `v0.1.0-rc.1`, a prerelease. GitHub Container
+Registry hosts the repo-linked `ghcr.io/darkquasar/batz` runtime image,
+`ghcr.io/darkquasar/batz-ci` qualification image and
+`ghcr.io/darkquasar/batz-tools` bootstrap image. Preparation stages images under
+source-SHA tags; qualification and release manifests consume immutable digests.
+Production tags, GitHub releases and image publication require owner authorization.
+No package-manager automation is required.
 
 ## Docker preparation recipes
 
-The two recipes take a required `PREPARED_IMAGE` pinned as `name@sha256:digest`;
-there is no default registry or base-image choice. The supplied Linux amd64 base
-must already contain the verified pinned mise bootstrap, CA certificates, curl,
-tar and procps (plus Git for the source qualification recipe). Build preparation may install the declared mise tools and uv
-packages. An ordinary image invocation only executes the selected CLI.
+`packaging/Dockerfile.tools` starts from an immutable Debian amd64 base and prepares
+OS tools plus the checksum-verified mise bootstrap. The CI and runtime recipes
+take that published `PREPARED_IMAGE` as `name@sha256:digest`. Build preparation may
+install the declared mise tools and uv packages. An ordinary image invocation
+only executes the selected CLI.
 
 `packaging/Dockerfile.ci` prepares tools and local fixtures; record the resulting
 image digest and fixture source. Tests must explicitly mount/select the source
-revision under qualification and use the prepared tools offline. The current
-Linux admission/confinement gap must be resolved and natively qualified before
-this image can supply a passing release lane.
+revision under qualification and use the prepared tools offline. Actual Linux
+confinement and native contracts must pass before this image can supply a passing
+release lane.
 
 `packaging/Dockerfile.runtime` consumes a verified native Linux archive from
 `dist/`, its SHA-256, version and full source SHA. It extracts that complete
@@ -85,15 +93,21 @@ installation at `/opt/Batz installations/candidate`, prepares its owned environm
 The Docker context filters exclude checkout caches, credentials and local state.
 Supply an explicit workspace volume at runtime; application data belongs outside
 the installation. Build/run and the resulting immutable registry digest still need
-actual Linux/Docker access and owner publishing configuration.
+actual Linux/Docker qualification.
 
 The workflow's prepared Linux source/tool root is `/opt/batz`; candidate native
 archives/manifests are staged at `/opt/release-dist`. Installed probes use the
 separate `/opt/Batz installations/candidate` root. Qualification validates the
 actual source SHA and candidate identities at these locations. An image containing
 older source or another candidate must fail; the prepared-image digest alone does
-not qualify the current release. No such exact-source image has been supplied or
-qualified in this local session.
+not qualify the current release.
+
+The owner-run `Prepare and qualify Linux` workflow builds the native archive set
+on macOS, prepares and stages both Linux image roles through the repository's
+`GITHUB_TOKEN`, and runs the Linux checks offline. Its `release-candidate` Actions
+artifact carries the frozen archives and candidate manifest to the tag workflow.
+The tag workflow still checks their configured SHA-256, exact source and version;
+an artifact run number alone does not authorize candidate bytes.
 
 Build the CI recipe from a clean standalone clone at the intended exact SHA;
 linked-worktree `.git` pointer files are insufficient. The context keeps local Git

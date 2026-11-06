@@ -10,9 +10,9 @@ Eligible main ancestors enter qualification before readiness is required. Every
 ancestor, including a non-tip commit, needs its own complete exact-SHA qualification
 before sealing or publication. Moving a tag cannot substitute another revision.
 
-Local S9 implementation does not authorize creating a production tag, readiness
-status/comment, release, image or package. The first version/channel, Docker
-registry/repository and publishing access remain owner decisions. Native Linux
+Production tags, readiness status/comments, releases and images require explicit
+owner authorization. The first selected candidate is the `v0.1.0-rc.1` prerelease;
+the selected runtime registry is repo-linked `ghcr.io/darkquasar/batz`. Native Linux
 confinement and real three-target qualification remain required; missing prepared
 images or credentials fail the affected work. No performance threshold or S8
 capability gates the first release. Active scope is local-file CloudTrail and the
@@ -97,12 +97,18 @@ also includes the reviewed source-tree digest. Development or dirty candidates
 are refused by publication. Candidate archives have one installation directory,
 `batz-VERSION-OS-ARCH/`. See [installation](../usage/install.md) for the user path.
 
-Configure these explicit repository variables for a future authorized run:
+Run `Prepare and qualify Linux` on the intended exact source with the selected
+version. It builds both native archives, the GHCR runtime image and the separate
+prepared qualification image, then retains the frozen `release-candidate` Actions
+artifact. This prepares candidate bytes; the tag workflow retains publication gates.
 
-- `BATZ_RELEASE_CANDIDATE_URL`: HTTPS URL of the frozen `candidate.json`; both
-  archives are siblings. Hosting receives no GitHub/registry credential.
+Configure these explicit repository variables for the authorized tag run:
+
+- `BATZ_RELEASE_CANDIDATE_RUN_ID`: Actions run holding the `release-candidate`
+  artifact. The macOS job uses its read-only workflow token to download it from
+  GitHub, then verifies the configured hash, full source SHA and tag version.
 - `BATZ_RELEASE_CANDIDATE_SHA256`: hash of those exact candidate bytes.
-- `BATZ_RELEASE_IMAGE`: the selected registry/repository, without a tag or digest.
+- `BATZ_RELEASE_IMAGE`: `ghcr.io/darkquasar/batz`, without a tag or digest.
 - `BATZ_PREPARED_LINUX_IMAGE`: full prepared-tool/fixture image reference pinned
   with `@sha256:...`, distinct from the distributed runtime image.
 
@@ -120,12 +126,11 @@ archives), and `/opt/Batz installations/candidate` (separately prepared installa
 candidate's Linux archive inventory). It must include the pinned tools, local
 fixtures, Git, Bash and Docker CLI used by the publisher. Source `ci/test all-local`
 and installed probes run on native Linux amd64 with networking disabled. They do
-not install/sync dependencies or fetch fixtures. The current macOS-only native
-admission fails on Linux until S9-C qualifies that boundary; this is a failure,
-not a passing placeholder. The distribution image similarly provides the baked
+not install/sync dependencies or fetch fixtures. Missing Linux confinement or a
+failed native check blocks qualification. The distribution image similarly provides the baked
 `/opt/Batz installations/candidate`; its actual Docker run executes the same installed probe.
 Prepared image creation may install dependencies; ordinary qualification cannot.
-These paths describe the workflow interface, not an available or qualified image.
+Only passing exact-source native checks qualify these prepared image identities.
 
 ## Owner readiness handoff
 
@@ -226,14 +231,16 @@ runtime/.local/venv/bin/python -I -B ci/release.py verify-set "$DIST/release.jso
 runtime/.local/venv/bin/python -I -B ci/release.py publish "$DIST/release.json" "$DIST"
 ```
 
-The final workflow job alone has `contents: write` and `GH_TOKEN`. Its digest-pinned
+The final workflow job alone has `contents: write`. The macOS installation job's
+`GH_TOKEN` can only read source and Actions artifacts. The final job's digest-pinned
 prepared Linux publisher verifies the staged registry digest with real Docker,
 including linux/amd64 and OCI labels `org.opencontainers.image.version`,
 `org.opencontainers.image.revision`, `org.opencontainers.image.batz-candidate-tree`.
 Missing registry configuration or immutable image proof fails before a GitHub
 write. This helper never chooses a registry, pushes an image or adds mutable tags.
-The selected image must already exist with its verified digest; D8's concrete
-registry write/access adapter remains blocked until the owner selects it.
+The selected image must already exist with its verified digest. The preparation
+workflow stages GHCR images with repository `packages: write` access and source
+labels; the final publisher verifies the digest without adding mutable image tags.
 
 The publisher rechecks tag/source/actors/readiness and local bytes at each write
 boundary. It creates a GitHub draft with a manifest-hash marker, uploads missing

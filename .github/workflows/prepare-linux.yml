@@ -1,12 +1,20 @@
 name: Prepare and qualify Linux
 
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Strict SemVer candidate version
+        required: true
+        default: v0.1.0-rc.1
   push:
     branches: [feat/s9-version-releases]
 
 permissions:
   contents: read
-  packages: write
+
+env:
+  VERSION: ${{ inputs.version || 'v0.1.0-rc.1' }}
 
 concurrency:
   group: prepare-linux-${{ github.ref }}
@@ -17,14 +25,51 @@ defaults:
     shell: bash
 
 jobs:
+  archives:
+    if: >-
+      github.repository == 'darkquasar/batz' && github.actor_id == '28435534' &&
+      github.triggering_actor == 'darkquasar'
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: ./.github/actions/prepare-macos
+      - name: Build both native archives from exact clean source
+        run: |
+          for target in darwin/arm64 linux/amd64; do
+            runtime/.local/venv/bin/python -I -B packaging/build.py archive \
+              --root "$GITHUB_WORKSPACE" --output "$RUNNER_TEMP/release-dist" \
+              --version "$VERSION" --source-sha "$GITHUB_SHA" --target "$target" \
+              --go "$BATZ_TOOLCHAIN_ROOT/go/bin/go"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: native-archives
+          path: ${{ runner.temp }}/release-dist/*.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+
   linux:
-    if: github.repository == 'darkquasar/batz' && github.actor_id == '28435534'
+    needs: archives
+    if: >-
+      github.repository == 'darkquasar/batz' && github.actor_id == '28435534' &&
+      github.triggering_actor == 'darkquasar'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: native-archives
+          path: dist
       - name: Verify native host and log in to linked GHCR
         env:
           REGISTRY_TOKEN: ${{ github.token }}
@@ -59,3 +104,66 @@ jobs:
                 /opt/batz/runtime/.local/go/bin/go test -tags batz_app ./internal/scratch -count=1 -v
               sed -n "/EACCES\|EPERM/p" /tmp/sandbox.trace | tail -100
             '
+      - name: Build and stage the version-matched runtime image
+        run: |
+          ARCHIVE="batz-$VERSION-linux-amd64.tar.gz"
+          ARCHIVE_SHA256=$(sha256sum "dist/$ARCHIVE" | cut -d ' ' -f 1)
+          BOOTSTRAP=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz-tools:sha-${{ github.sha }})
+          SOURCE_TREE_SHA256=$(docker run --rm --network none \
+            --mount "type=bind,src=$PWD/dist,dst=/dist,readonly" "$SOURCE_IMAGE" \
+            /opt/batz/runtime/.local/venv/bin/python -I -B -c \
+            'import pathlib,runpy,sys; b=runpy.run_path("packaging/build.py"); row,content=b["inspect_archive"](pathlib.Path(sys.argv[1])); print(content["source_tree_sha256"])' \
+            "/dist/$ARCHIVE")
+          docker build --file packaging/Dockerfile.runtime \
+            --build-arg PREPARED_IMAGE="$BOOTSTRAP" --build-arg ARCHIVE="dist/$ARCHIVE" \
+            --build-arg ARCHIVE_SHA256="$ARCHIVE_SHA256" --build-arg VERSION="$VERSION" \
+            --build-arg SOURCE_SHA="$GITHUB_SHA" --build-arg SOURCE_TREE_SHA256="$SOURCE_TREE_SHA256" \
+            --tag ghcr.io/darkquasar/batz:sha-${{ github.sha }} .
+          docker push ghcr.io/darkquasar/batz:sha-${{ github.sha }}
+          RUNTIME_IMAGE=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz:sha-${{ github.sha }})
+          echo "RUNTIME_IMAGE=$RUNTIME_IMAGE" >> "$GITHUB_ENV"
+          echo "LINUX_ARCHIVE=$ARCHIVE" >> "$GITHUB_ENV"
+          echo "LINUX_ARCHIVE_SHA256=$ARCHIVE_SHA256" >> "$GITHUB_ENV"
+      - name: Freeze candidate and prepare its separate qualification image
+        run: |
+          docker run --rm --network none \
+            --mount "type=bind,src=$PWD/dist,dst=/dist" "$SOURCE_IMAGE" \
+            /opt/batz/runtime/.local/venv/bin/python -I -B packaging/build.py candidate \
+            --archive "/dist/batz-$VERSION-darwin-arm64.tar.gz" \
+            --archive "/dist/$LINUX_ARCHIVE" --docker-digest "${RUNTIME_IMAGE##*@}" \
+            --output /dist/candidate.json
+          BOOTSTRAP=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz-tools:sha-${{ github.sha }})
+          docker build --file packaging/Dockerfile.ci \
+            --build-arg PREPARED_IMAGE="$BOOTSTRAP" --build-arg SOURCE_SHA="$GITHUB_SHA" \
+            --build-arg LINUX_ARCHIVE="$LINUX_ARCHIVE" --build-arg LINUX_ARCHIVE_SHA256="$LINUX_ARCHIVE_SHA256" \
+            --tag ghcr.io/darkquasar/batz-ci:candidate-${{ github.sha }} .
+          docker push ghcr.io/darkquasar/batz-ci:candidate-${{ github.sha }}
+          PREPARED_IMAGE=$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/darkquasar/batz-ci:candidate-${{ github.sha }})
+          echo "PREPARED_IMAGE=$PREPARED_IMAGE" >> "$GITHUB_ENV"
+          CANDIDATE_SHA256=$(sha256sum dist/candidate.json | cut -d ' ' -f 1)
+          echo "CANDIDATE_SHA256=$CANDIDATE_SHA256" >> "$GITHUB_ENV"
+          printf 'Prepared: `%s`\nRuntime: `%s`\nCandidate SHA256: `%s`\n' \
+            "$PREPARED_IMAGE" "$RUNTIME_IMAGE" "$CANDIDATE_SHA256" >> "$GITHUB_STEP_SUMMARY"
+      - name: Qualify native Linux source and installation offline
+        run: |
+          docker run --rm --network none "$PREPARED_IMAGE" /bin/bash -euo pipefail -c '
+            ci/test all-local
+            runtime/.local/venv/bin/python -I -B ci/release.py qualify-native \
+              /opt/release-dist/candidate.json /opt/release-dist --target linux/amd64 \
+              --prepared-install "/opt/Batz installations/candidate"
+          '
+      - name: Qualify the distributed runtime image offline
+        run: |
+          docker run --rm --network none --user "$(id -u):$(id -g)" \
+            --mount "type=bind,src=$PWD,dst=/qualification,readonly" \
+            --mount "type=bind,src=$PWD/dist,dst=/opt/release-dist,readonly" \
+            --entrypoint "/opt/Batz installations/candidate/runtime/.local/venv/bin/python" \
+            "$RUNTIME_IMAGE" -I -B /qualification/ci/release.py qualify-native \
+            /opt/release-dist/candidate.json /opt/release-dist --target linux/amd64 \
+            --prepared-install "/opt/Batz installations/candidate"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-candidate
+          path: dist/
+          if-no-files-found: error
+          compression-level: 0

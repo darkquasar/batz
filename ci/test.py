@@ -61,8 +61,8 @@ def environment():
 
 @contextmanager
 def prepare_native(lock):
-    if (platform.system(), platform.machine()) != ('Darwin', 'arm64'):
-        raise ValueError('native lanes require the qualified macOS ARM64 host')
+    if (platform.system(), platform.machine()) not in {('Darwin', 'arm64'), ('Linux', 'x86_64')}:
+        raise ValueError('native lanes require a supported macOS ARM64 or Linux AMD64 host')
     # Setup already built the matching source collector. Offline lanes verify and
     # reuse it; they never prepare/rewrite Python environments or compile it again.
     from setup import verify_installation

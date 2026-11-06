@@ -15,10 +15,10 @@ defaults:
   run:
     shell: bash
 
-# Candidate hosting and both image identities are explicit owner configuration.
+# Candidate artifact run and both image identities are explicit owner configuration.
 # Read-only jobs receive no publishing token or registry write credential.
 env:
-  CANDIDATE_URL: ${{ vars.BATZ_RELEASE_CANDIDATE_URL }}
+  CANDIDATE_RUN_ID: ${{ vars.BATZ_RELEASE_CANDIDATE_RUN_ID }}
   CANDIDATE_SHA256: ${{ vars.BATZ_RELEASE_CANDIDATE_SHA256 }}
   BATZ_RELEASE_IMAGE: ${{ vars.BATZ_RELEASE_IMAGE }}
   BATZ_PREPARED_LINUX_IMAGE: ${{ vars.BATZ_PREPARED_LINUX_IMAGE }}
@@ -136,6 +136,9 @@ jobs:
       github.actor_id == '28435534' && github.triggering_actor == 'darkquasar'
     runs-on: macos-15
     timeout-minutes: 45
+    permissions:
+      contents: read
+      actions: read
     steps:
       - name: Verify rerun stable owner identity before checkout
         run: |
@@ -147,9 +150,23 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/prepare-macos
       - name: Download frozen qualified candidate inputs
-        run: >-
-          runtime/.local/venv/bin/python -I -B ci/release.py fetch-candidate
-          "$CANDIDATE_URL" "$CANDIDATE_SHA256" "$RUNNER_TEMP/release-dist"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$CANDIDATE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          gh run download "$CANDIDATE_RUN_ID" --repo darkquasar/batz \
+            --name release-candidate --dir "$RUNNER_TEMP/release-dist"
+          runtime/.local/venv/bin/python -I -B - <<'PY'
+          import os, pathlib, sys
+          sys.path.insert(0, 'ci')
+          from release import digest, require, validate_candidate
+          dist = pathlib.Path(os.environ['RUNNER_TEMP']) / 'release-dist'
+          path = dist / 'candidate.json'
+          require(digest(path.read_bytes()) == os.environ['CANDIDATE_SHA256'], 'frozen candidate digest mismatch')
+          candidate, _ = validate_candidate(path, dist)
+          require(candidate['source_sha'] == os.environ['GITHUB_SHA'] and
+                  candidate['version'] == os.environ['GITHUB_REF_NAME'], 'candidate does not match tagged source/version')
+          PY
       - name: Build exact source with the accepted archive producer
         env:
           VERSION: ${{ github.ref_name }}
@@ -253,7 +270,7 @@ jobs:
         run: |
           # Distribution images must include a prepared /opt/Batz installations/candidate matching
           # the candidate; this probe uses real Docker, network disabled.
-          docker run --rm --platform linux/amd64 --network none \
+          docker run --rm --platform linux/amd64 --network none --user "$(id -u):$(id -g)" \
             -e SOURCE_SHA -e CANDIDATE_SHA256 \
             --mount "type=bind,src=$GITHUB_WORKSPACE,dst=/qualification,readonly" \
             --mount "type=bind,src=$RUNNER_TEMP/release-dist,dst=/opt/release-dist,readonly" \

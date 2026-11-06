@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
-# PREPARED_IMAGE must be an owner-supplied Linux amd64 image pinned by digest.
-# It contains verified mise 2026.10.24, CA certificates, curl, tar and procps.
-# No base/registry choice or publishing credential is implied by this recipe.
+# PREPARED_IMAGE is the published Dockerfile.tools bootstrap pinned by digest.
+# It contains verified mise 2026.10.24 and the required OS tools.
+# This recipe builds the runtime; the owner workflow handles GHCR publication.
 ARG PREPARED_IMAGE
 FROM --platform=linux/amd64 ${PREPARED_IMAGE}
 ARG PREPARED_IMAGE

@@ -3,6 +3,10 @@
 FROM --platform=linux/amd64 debian:bookworm-slim@sha256:c67e92c8099ba22853ab4cfda7cfb494d253d6012ca82dee98ba8976772af018
 LABEL org.opencontainers.image.source="https://github.com/darkquasar/batz" \
       dev.batz.image-role="linux-bootstrap-tools"
+ENV MISE_DATA_DIR=/opt/batz-tools/mise/data \
+    MISE_CACHE_DIR=/opt/batz-tools/mise/cache \
+    MISE_CONFIG_DIR=/opt/batz-tools/mise/config \
+    MISE_STATE_DIR=/opt/batz-tools/mise/state
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates curl tar gzip xz-utils git procps python3 docker.io strace \
     && rm -rf /var/lib/apt/lists/*

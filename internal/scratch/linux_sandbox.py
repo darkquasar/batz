@@ -13,6 +13,35 @@ import stat
 import sys
 
 
+def runtime_facts():
+    # DuckDB 1.5.4 probes CPU/memory limits during import and connection setup.
+    # Admit individual kernel fact files, never their containing directories.
+    found = {'/proc/self/cgroup', '/sys/devices/system/cpu/online'}
+    with open('/proc/self/cgroup') as handle:
+        for line in handle:
+            parts = line.strip().split(':', 2)
+            if len(parts) != 3:
+                raise RuntimeError('invalid kernel cgroup entry')
+            hierarchy, controllers, path = parts
+            path = '' if path == '/' else path
+            names = controllers.split(',')
+            if hierarchy == '0' and names == ['']:
+                found.update('/sys/fs/cgroup%s/%s' % (p, name)
+                             for p in (path, '') for name in ('memory.max', 'cpu.max'))
+            if 'memory' in names:
+                found.update('/sys/fs/cgroup/memory%s/memory.limit_in_bytes' % p for p in (path, ''))
+            if 'cpu' in names:
+                found.update('/sys/fs/cgroup/cpu%s/%s' % (p, name)
+                             for p in (path, '') for name in ('cpu.cfs_quota_us', 'cpu.cfs_period_us'))
+    result = set()
+    for path in found:
+        resolved = os.path.realpath(path)
+        if path.startswith('/sys/fs/cgroup/') and not resolved.startswith('/sys/fs/cgroup/'):
+            continue
+        result.add(resolved)
+    return sorted(result)
+
+
 def confine(policy):
     if sys.platform != 'linux' or platform.machine() != 'x86_64':
         raise RuntimeError('Linux sandbox requires native amd64')
@@ -43,7 +72,7 @@ def confine(policy):
     ruleset = checked(libc.syscall(444, ctypes.byref(attr), ctypes.sizeof(attr), 0),
                       'Landlock create ruleset')
     try:
-        def allow(path, rights, optional=False):
+        def allow(path, rights, optional=False, file_only=False):
             try:
                 fd = os.open(path, os.O_PATH | os.O_CLOEXEC)
             except FileNotFoundError:
@@ -51,7 +80,10 @@ def confine(policy):
                     return
                 raise
             try:
-                if not stat.S_ISDIR(os.fstat(fd).st_mode):
+                mode = os.fstat(fd).st_mode
+                if file_only and not stat.S_ISREG(mode):
+                    raise RuntimeError('runtime fact must be a regular file: ' + path)
+                if not stat.S_ISDIR(mode):
                     rights &= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 14)
                 rule = PathRule(rights, fd)
                 checked(libc.syscall(445, ruleset, 1, ctypes.byref(rule), 0),
@@ -64,6 +96,8 @@ def confine(policy):
             allow(path, readonly, optional=True)
         for path in policy['reads']:
             allow(path, readonly)
+        for path in runtime_facts():
+            allow(path, 1 << 2, optional=True, file_only=True)
         allow('/dev/null', (1 << 1) | (1 << 2))
         allow(policy['root'], filesystem)
         checked(libc.prctl(38, 1, 0, 0, 0), 'no_new_privs')
@@ -83,7 +117,7 @@ def confine(policy):
     instructions = [(0x20, 0, 0, 4), (0x15, 1, 0, 0xC000003E),
                     (0x06, 0, 0, 0x80000000), (0x20, 0, 0, 0),
                     (0x35, 0, 1, 0x40000000), (0x06, 0, 0, 0x80000000)]
-    denied = [*range(41, 56), 101, 288, 299, 307, 310, 311, 438,
+    denied = [16, *range(41, 56), 101, 288, 299, 307, 310, 311, 438,
               425, 426, 427,
               # Landlock does not mediate metadata changes. Deny these globally.
               90, 91, 92, 93, 94, 132, 235, 260, 261, 268, 280, 452,

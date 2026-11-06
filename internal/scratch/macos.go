@@ -46,7 +46,7 @@ func Command(profile, program string, args ...string) (string, []string, error) 
 		if err := json.Unmarshal([]byte(profile), &policy); err != nil || policy.Python == "" {
 			return "", nil, fmt.Errorf("invalid Linux sandbox profile")
 		}
-		return policy.Python, append([]string{"-I", "-B", "-c", linuxLauncher, profile, program}, args...), nil
+		return policy.Python, append([]string{"-I", "-S", "-B", "-c", linuxLauncher, profile, program}, args...), nil
 	}
 	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
 		return "", nil, fmt.Errorf("native offline sandbox unavailable on this target")
