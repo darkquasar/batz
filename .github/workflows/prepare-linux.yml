@@ -49,3 +49,13 @@ jobs:
             -e GOPROXY=off -e GOSUMDB=off -e GOTOOLCHAIN=local -e GOMAXPROCS=2 \
             -e GOENV=off -e CGO_ENABLED=0 "$SOURCE_IMAGE" \
             /opt/batz/runtime/.local/go/bin/go test -tags batz_app ./internal/scratch -count=1 -v
+      - name: Retain syscall diagnosis for a failed scratch check
+        if: failure() && env.SOURCE_IMAGE != ''
+        run: |
+          docker run --rm --network none -e BATZ_TEST_RUNTIME=/opt/batz/runtime/.local \
+            -e GOPROXY=off -e GOSUMDB=off -e GOTOOLCHAIN=local -e GOMAXPROCS=2 \
+            -e GOENV=off -e CGO_ENABLED=0 "$SOURCE_IMAGE" /bin/bash -c '
+              strace -f -e trace=file,network -o /tmp/sandbox.trace \
+                /opt/batz/runtime/.local/go/bin/go test -tags batz_app ./internal/scratch -count=1 -v
+              sed -n "/EACCES\|EPERM/p" /tmp/sandbox.trace | tail -100
+            '
