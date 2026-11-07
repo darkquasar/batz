@@ -20,6 +20,9 @@ coverage.out
 .cache/
 /.local/
 
+# Local corpus metadata and 1Password references; never store resolved credentials here.
+/corpus.op.env
+
 # Python environments and generated caches (at any depth).
 .venv/
 __pycache__/
