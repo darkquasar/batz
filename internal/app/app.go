@@ -39,6 +39,9 @@ func resolve(value, root, declaring, workspace string) string {
 	return config.ResolvePath(value, root, workspace, declaring)
 }
 func Execute(args []string, stdout, stderr io.Writer) int {
+	if len(args) > 0 && args[0] == "version" {
+		return version(args[1:], stdout, stderr)
+	}
 	if len(args) > 0 && args[0] == "status" {
 		return statusCommand(args[1:], stdout, stderr)
 	}
@@ -86,23 +89,16 @@ func Execute(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return diagnostic(2, err.Error())
 	}
-	if *project == "" {
-		candidate := cwd
-		for {
-			if _, err = os.Stat(filepath.Join(candidate, ".git")); err == nil {
-				*project = candidate
-				break
-			}
-			parent := filepath.Dir(candidate)
-			if parent == candidate {
-				return diagnostic(2, "missing project checkout")
-			}
-			candidate = parent
-		}
-	}
-	*project, err = filepath.Abs(*project)
+	executable, err := os.Executable()
 	if err != nil {
 		return diagnostic(2, err.Error())
+	}
+	*project, err = config.ProjectRoot(*project, cwd, executable)
+	if err != nil {
+		return diagnostic(2, err.Error())
+	}
+	if err := verifyReleaseContent(*project); err != nil {
+		return diagnostic(4, err.Error())
 	}
 	contextInput := config.Context{Project: *project, Workspace: *workspace, Binding: *bindingFile, Case: *caseFile, BindingID: *binding, Route: *route, Input: values}
 	selection, err := config.Select(contextInput)

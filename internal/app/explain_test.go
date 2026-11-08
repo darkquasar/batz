@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"batz/internal/app"
+	"batz/internal/buildinfo"
 	"batz/internal/contracts"
 	"bytes"
 	"encoding/json"
@@ -11,6 +12,9 @@ import (
 )
 
 func TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime(t *testing.T) {
+	original := buildinfo.SourceSHA
+	buildinfo.SourceSHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	t.Cleanup(func() { buildinfo.SourceSHA = original })
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "pipelines"), 0700); err != nil {
 		t.Fatal(err)
@@ -37,6 +41,21 @@ func TestBareExplainUsesDeclarationsWithoutWorkspaceOrRuntime(t *testing.T) {
 	}
 	if len(report.Diagnostics) == 0 {
 		t.Fatal("missing native assets must be disclosed")
+	}
+	for _, check := range []struct {
+		args []string
+		code int
+	}{
+		{[]string{"--level", "2"}, 0},
+		{[]string{"--strict"}, 3},
+		{[]string{"--level", "3"}, 4},
+	} {
+		out.Reset()
+		diagnostics.Reset()
+		args := append([]string{"explain", definition, "--project", root, "--format", "json"}, check.args...)
+		if code := app.Execute(args, &out, &diagnostics); code != check.code {
+			t.Fatalf("explain %v: exit=%d want=%d %s", check.args, code, check.code, &diagnostics)
+		}
 	}
 	entries, err := os.ReadDir(root)
 	if err != nil {

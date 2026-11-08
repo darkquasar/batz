@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1
+# PREPARED_IMAGE is the published Dockerfile.tools bootstrap pinned by digest.
+# It contains verified mise 2026.10.24 and the required OS tools.
+# This recipe builds the runtime; the owner workflow handles GHCR publication.
+ARG PREPARED_IMAGE
+FROM --platform=linux/amd64 ${PREPARED_IMAGE}
+ARG PREPARED_IMAGE
+ARG ARCHIVE
+ARG ARCHIVE_SHA256
+ARG VERSION
+ARG SOURCE_SHA
+ARG SOURCE_TREE_SHA256
+LABEL org.opencontainers.image.title="Batz" \
+      org.opencontainers.image.source="https://github.com/darkquasar/batz" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${SOURCE_SHA}" \
+      org.opencontainers.image.batz-candidate-tree="${SOURCE_TREE_SHA256}"
+USER root
+ENV BATZ_INSTALL="/opt/Batz installations/candidate"
+COPY ${ARCHIVE} /tmp/batz.tar.gz
+RUN case "$PREPARED_IMAGE" in *@sha256:*) ;; *) echo 'digest-pinned prepared image required' >&2; exit 1;; esac \
+    && test "${#ARCHIVE_SHA256}" = 64 \
+    && echo "$ARCHIVE_SHA256  /tmp/batz.tar.gz" | sha256sum -c - \
+    && mkdir -p "$BATZ_INSTALL" \
+    && tar -xzf /tmp/batz.tar.gz --strip-components=1 -C "$BATZ_INSTALL" \
+    && rm /tmp/batz.tar.gz
+WORKDIR ${BATZ_INSTALL}
+# Preparation is online and explicit; the running image never provisions.
+RUN mise trust mise.toml && mise install \
+    && mise install \
+    && rm -rf runtime/.local/venv \
+    && mise install \
+    && runtime/.local/venv/bin/python -I -B ci/setup.py --check
+RUN bin/batz version --format json > /tmp/batz-version.json \
+    && runtime/.local/venv/bin/python -I -B -c 'import json,os; d=json.load(open("/tmp/batz-version.json")); assert d["version"] == os.environ["VERSION"] and d["source_sha"] == os.environ["SOURCE_SHA"] and d["target"] == "linux/amd64"; c=json.load(open("release-content.json")); assert c["source_tree_sha256"] == os.environ["SOURCE_TREE_SHA256"]' \
+    && rm /tmp/batz-version.json
+WORKDIR /workspace
+ENTRYPOINT ["/opt/Batz installations/candidate/bin/batz"]

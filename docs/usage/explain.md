@@ -3,10 +3,10 @@
 Use the project-local CLI from the Batz checkout:
 
 ```sh
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 1
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 2
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 --example api-read --strict
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 --format json > /tmp/explain.json
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 1
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 2
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 --example api-read --strict
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 --format json > /tmp/explain.json
 ```
 
 Level 1 shows declarations and named outputs. Level 2 adds the local tracer's
@@ -17,7 +17,7 @@ and recursive native structures. A registered example carries a SHA-256 and
 reviewed semantic expectations. An explicit file needs an explicit --route:
 
 ```sh
-runtime/.local/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 \
+bin/batz explain pipelines/aws-cloudtrail/pipeline.yaml --level 3 \
   --route local_raw --example /absolute/path/native-cloudtrail.json
 ```
 

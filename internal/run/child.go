@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"batz/internal/contracts"
+	"batz/internal/scratch"
 )
 
 // processRSS samples the child's process group plus current descendants. RSS is
@@ -260,21 +261,25 @@ func sandboxedChild(privateRoot, profile string, ctx context.Context, lease *os.
 		// of the current stage. Every writable path belongs to the same budget.
 		budget.Roots = []string{privateRoot}
 		environment = append(environment, "MAX_FORK_WORKERS=1")
-		args = append([]string{"-p", profile, program}, args...)
-		program = "/usr/bin/sandbox-exec"
+		var err error
+		program, args, err = scratch.Command(profile, program, args...)
+		if err != nil {
+			return contracts.ResourceUsage{}, err
+		}
 	}
 	return child(ctx, lease, dir, logpath, budget, environment, program, args...)
 }
 
 // InspectPrivate runs a Batz-owned inspector with the same process settlement and
 // resource supervision as collection/modeling. A nonempty profile additionally
-// confines descendant writes with the macOS kernel sandbox. Discovery uses an
+// confines descendant writes with the platform's kernel sandbox. Discovery uses an
 // empty profile after content admission; its writes are not kernel-confined.
-func InspectPrivate(ctx context.Context, root, profile, python, script, request string) (contracts.ResourceUsage, error) {
+// privateRoot is the profile's complete writable root, including root's siblings.
+func InspectPrivate(ctx context.Context, root, privateRoot, profile, python, script, request string) (contracts.ResourceUsage, error) {
 	lease, err := os.OpenFile(filepath.Join(root, "inspection.lease"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
 	if err != nil {
 		return contracts.ResourceUsage{}, err
 	}
 	defer lease.Close()
-	return sandboxedChild(root, profile, ctx, lease, root, filepath.Join(root, "inspection.log"), childBudget{Limits().ScratchBytes, []string{root}}, nil, python, "-I", script, request)
+	return sandboxedChild(privateRoot, profile, ctx, lease, root, filepath.Join(root, "inspection.log"), childBudget{Limits().ScratchBytes, []string{root}}, nil, python, "-I", "-B", script, request)
 }

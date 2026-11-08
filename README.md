@@ -9,7 +9,43 @@ application documentation.
 The current local CloudTrail tracer runs a fixture through Bento, SQLMesh and
 DuckDB. Offline explain shows declarations, stages, native structures and sample
 values, with saved binding/case context and configuration origins. Native preview
-is qualified on macOS ARM64; other environments report unavailable.
+is qualified on macOS ARM64 and Linux AMD64, including Docker. Linux requires
+Landlock ABI 3 or newer and seccomp; missing enforcement reports unavailable.
+
+## Pipelines, bindings, workspaces and cases
+
+A **binding** is one configured use of a reusable pipeline: the pipeline version,
+route, input and settings to use, with an ID for tracking its imports and reruns.
+For example, two CloudTrail bindings can read evidence from different accounts
+using the same parsing and SQL logic:
+
+```text
++---------------------+  configure  +----------------------------+
+| CloudTrail pipeline | =========> | account-a: /evidence/a/    |
++---------------------+            +----------------------------+
+          |
+          | => configure
+          v
++----------------------------+
+| account-b: /evidence/b/    |
++----------------------------+
+```
+
+| Term | What it means |
+| --- | --- |
+| Pipeline | Reusable source definition with native collection configuration and SQL models. |
+| Binding | One configured instance of a pipeline. Its ID separates input tracking, state and published results from other bindings within a workspace. |
+| Workspace | The explicitly selected location holding evidence, run state, reports and published data. |
+| Case | An optional saved group of bindings for an investigation. |
+
+Supply a binding through CLI arguments or save it in a binding file. Reuse its
+stable ID in the same workspace to address its existing history; omitting the ID
+generates a new binding. A single-binding run needs no case. The current CLI can
+select one binding from a case; scheduling several case bindings together remains
+planned. See [selection and saved bindings](docs/usage/selection.md) and
+[reruns and replay](docs/usage/runs.md).
+
+## Getting started
 
 ## Pipelines, bindings, workspaces and cases
 

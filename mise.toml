@@ -1,0 +1,41 @@
+min_version = "2026.10.24"
+
+[settings]
+lockfile = true
+
+[hooks]
+postinstall = 'python3.12 -I -B "{{ config_root }}/ci/setup.py" --check'
+
+[tools."http:batz-python"]
+version = "3.12.12"
+strip_components = 1
+bin_path = "bin"
+
+[tools."http:batz-python".platforms]
+
+macos-arm64 = { url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.12.12%2B20260211-aarch64-apple-darwin-install_only_stripped.tar.gz", checksum = "sha256:22625deaf5757e7c266cf1a096c9151a06b598b1e14632a2ec9993d58ec5fe84" }
+
+linux-x64 = { url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260211/cpython-3.12.12%2B20260211-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz", checksum = "sha256:1dbaa624a09e15afe7efbdac08d42993135a68db8d34f986ef6977a6d77bdc3c" }
+
+[tools."http:batz-go"]
+version = "1.27.3"
+strip_components = 1
+bin_path = "bin"
+
+[tools."http:batz-go".platforms]
+
+macos-arm64 = { url = "https://go.dev/dl/go1.27.3.darwin-arm64.tar.gz", checksum = "sha256:dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2" }
+
+linux-x64 = { url = "https://go.dev/dl/go1.27.3.linux-amd64.tar.gz", checksum = "sha256:65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40" }
+
+[tools."http:batz-uv"]
+version = "0.8.12"
+depends = ["http:batz-python", "http:batz-go"]
+postinstall = { run = 'MISE_BIN="{{ mise_bin }}" python3.12 -I -B "{{ config_root }}/ci/setup.py"', when = "always" }
+strip_components = 1
+
+[tools."http:batz-uv".platforms]
+
+macos-arm64 = { url = "https://github.com/astral-sh/uv/releases/download/0.8.12/uv-aarch64-apple-darwin.tar.gz", checksum = "sha256:a3f78d20465c6d18f7072f118ce1c61b164b98698fdc37357e72958c7d1b68fd" }
+
+linux-x64 = { url = "https://github.com/astral-sh/uv/releases/download/0.8.12/uv-x86_64-unknown-linux-gnu.tar.gz", checksum = "sha256:f976ebdc612e71209f46664ab6c0325fa0090059b4474e047edd39eb9395373b" }

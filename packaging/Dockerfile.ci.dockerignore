@@ -1,0 +1,16 @@
+.git/config
+.git/config.worktree
+.git/hooks
+.git/logs
+.git/worktrees
+.local
+runtime/.local
+bin
+build
+.aws
+.codex
+.agents
+.env
+.env.*
+*.pem
+REPOLOCAL.md
